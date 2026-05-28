@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Shipping Policy – {{ store_name }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-12">
+  <h1 class="text-3xl font-bold mb-2">Shipping Policy</h1>
+  <p class="text-sm text-gray-400 mb-8">Last updated: May 28, 2026</p>
+  <div class="prose prose-sm max-w-none text-gray-600 space-y-4 leading-relaxed">
+    
+<h2 class="text-xl font-semibold mt-6 mb-2">How We Ship</h2>
+<p>We operate a dropshipping model — your order is fulfilled directly by our supplier partners and shipped to your door. This allows us to offer a wide product range at competitive prices.</p>
+
+<h2 class="text-xl font-semibold mt-6 mb-2">Estimated Delivery Times</h2>
+<table class="w-full text-sm border-collapse mt-3 mb-4">
+  <thead><tr class="bg-gray-100"><th class="border px-3 py-2 text-left">Destination</th><th class="border px-3 py-2 text-left">Estimated Delivery</th></tr></thead>
+  <tbody>
+    <tr><td class="border px-3 py-2">United States</td><td class="border px-3 py-2">7–14 business days</td></tr>
+    <tr><td class="border px-3 py-2">Canada / Australia</td><td class="border px-3 py-2">10–18 business days</td></tr>
+    <tr><td class="border px-3 py-2">United Kingdom / EU</td><td class="border px-3 py-2">8–16 business days</td></tr>
+    <tr><td class="border px-3 py-2">Rest of World</td><td class="border px-3 py-2">14–25 business days</td></tr>
+  </tbody>
+</table>
+<p>These are estimates. Delays may occur due to customs clearance, public holidays, or carrier capacity. We ship from warehouses in China, the US, and Europe depending on product and stock location.</p>
+
+<h2 class="text-xl font-semibold mt-6 mb-2">Shipping Costs</h2>
+<p>Standard shipping is <strong>free</strong> on all orders. Expedited shipping options may be available at checkout for an additional fee.</p>
+
+<h2 class="text-xl font-semibold mt-6 mb-2">Tracking</h2>
+<p>Once your order ships you will receive a tracking number by email. Track your package via the carrier website or contact us for assistance.</p>
+
+<h2 class="text-xl font-semibold mt-6 mb-2">Customs and Duties</h2>
+<p>International orders may be subject to import duties and taxes levied by the destination country. These charges are the buyer's responsibility. We mark packages at accurate declared values.</p>
+
+<h2 class="text-xl font-semibold mt-6 mb-2">Lost or Undelivered Packages</h2>
+<p>If your package is marked delivered but you have not received it, please check with neighbours and your local post office first. If still missing, contact us within 7 days and we will investigate and reship or refund.</p>
+
+  </div>
+</div>
+{% endblock %}
