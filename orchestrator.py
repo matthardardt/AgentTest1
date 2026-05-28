@@ -73,9 +73,17 @@ async def run_store(host: str = "0.0.0.0", port: int = 8000) -> None:
     await server.serve()
 
 
-async def main(with_store: bool = False) -> None:
+async def main(with_store: bool = False, run_golive: bool = False) -> None:
     console.print(f"[bold cyan]🚀 {settings.store_name} — Agent Orchestrator[/bold cyan]")
     await init_db()
+
+    # Optional pre-flight: run the Go-Live agent once before starting the loops
+    if run_golive:
+        from agents.golive_agent import GoLiveAgent
+        console.rule("[bold]Go-Live pre-flight")
+        report = await GoLiveAgent().run_golive()
+        console.print(report)
+        console.rule()
 
     # Instantiate agents
     product_agent = ProductHuntingAgent()
@@ -180,12 +188,14 @@ async def _dynamic_agent_watcher() -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Dropshipping agent orchestrator")
     parser.add_argument("--store", action="store_true", help="Also run the FastAPI store server")
+    parser.add_argument("--golive", action="store_true",
+                        help="Run the Go-Live agent once as a pre-flight before starting the loops")
     args = parser.parse_args()
 
     signal.signal(signal.SIGINT, _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
 
     try:
-        asyncio.run(main(with_store=args.store))
+        asyncio.run(main(with_store=args.store, run_golive=args.golive))
     except KeyboardInterrupt:
         pass

@@ -61,8 +61,7 @@ async def homepage(request: Request, db: AsyncSession = Depends(get_db)):
         .limit(20)
     )
     products_list = result.scalars().all()
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "products": products_list,
         "store_name": settings.store_name,
     })
@@ -76,8 +75,7 @@ async def product_page(product_id: str, request: Request, db: AsyncSession = Dep
         raise HTTPException(status_code=404, detail="Product not found")
     images = json.loads(product.images or "[]")
     tags = json.loads(product.tags or "[]")
-    return templates.TemplateResponse("product.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "product.html", {
         "product": product,
         "images": images,
         "tags": tags,
@@ -87,8 +85,7 @@ async def product_page(product_id: str, request: Request, db: AsyncSession = Dep
 
 @app.get("/checkout", response_class=HTMLResponse)
 async def checkout_page(request: Request):
-    return templates.TemplateResponse("checkout.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "checkout.html", {
         "store_name": settings.store_name,
         "stripe_key": settings.stripe_api_key or "",
     })
@@ -102,10 +99,21 @@ async def order_page(order_id: str, request: Request, db: AsyncSession = Depends
         raise HTTPException(status_code=404, detail="Order not found")
     items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order_id))
     items = items_result.scalars().all()
-    return templates.TemplateResponse("order_confirmation.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "order_confirmation.html", {
         "order": order,
         "items": items,
+        "store_name": settings.store_name,
+    })
+
+
+@app.get("/pages/{slug}", response_class=HTMLResponse)
+async def legal_page(slug: str, request: Request):
+    """Serve a generated legal/policy page (privacy, terms, refund, shipping)."""
+    safe_slug = "".join(c for c in slug.lower() if c.isalnum() or c in ("-", "_"))
+    template_name = f"legal_{safe_slug}.html"
+    if not (BASE_DIR / "templates" / template_name).exists():
+        raise HTTPException(status_code=404, detail="Page not found")
+    return templates.TemplateResponse(request, template_name, {
         "store_name": settings.store_name,
     })
 
