@@ -26,6 +26,7 @@ from agents.pricing_agent import PricingAgent
 from agents.ordering_agent import OrderingAgent
 from agents.website_maintenance_agent import WebsiteMaintenanceAgent
 from agents.manager_agent import ManagerAgent
+from agents.design_agent import DesignAgent
 from agents.dynamic_agent import DynamicAgent
 
 settings = get_settings()
@@ -90,6 +91,7 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
     pricing_agent = PricingAgent()
     ordering_agent = OrderingAgent()
     website_agent = WebsiteMaintenanceAgent()
+    design_agent  = DesignAgent()
     manager_agent = ManagerAgent()
 
     # Print schedule table
@@ -103,6 +105,7 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
         (pricing_agent,  settings.pricing_agent_interval,  "Pricing"),
         (ordering_agent, settings.ordering_agent_interval, "Ordering / Fulfillment"),
         (website_agent,  settings.website_agent_interval,  "Website Maintenance"),
+        (design_agent,   settings.website_agent_interval,  "Graphic Design"),
         (manager_agent,  settings.manager_agent_interval,  "Manager"),
     ]
     for agent, interval, label in schedules:
@@ -129,6 +132,11 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
             website_agent.run_maintenance,
             settings.website_agent_interval,
             "Website Maintenance",
+        )),
+        asyncio.create_task(run_agent_loop(
+            design_agent.run_design_cycle,
+            settings.website_agent_interval,
+            "Graphic Design",
         )),
         asyncio.create_task(run_agent_loop(
             manager_agent.run_management_cycle,

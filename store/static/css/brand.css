@@ -1,0 +1,58 @@
+/* Vendo's Deals — Brand Stylesheet */
+:root {
+  --vd-primary:       #7C3AED;
+  --vd-primary-dark:  #4C1D95;
+  --vd-primary-light: #A78BFA;
+  --vd-accent-pink:   #EC4899;
+  --vd-accent-gold:   #FBBF24;
+  --vd-glass:         #DBEAFE;
+  --vd-text-on-dark:  #EDE9FE;
+}
+
+/* ── Tailwind color overrides ─────────────────────── */
+.text-indigo-600              { color: var(--vd-primary) !important; }
+.hover\:text-indigo-600:hover { color: var(--vd-primary) !important; }
+.bg-indigo-600                { background-color: var(--vd-primary) !important; }
+.hover\:bg-indigo-700:hover   { background-color: var(--vd-primary-dark) !important; }
+.border-indigo-600            { border-color: var(--vd-primary) !important; }
+
+/* ── Nav ─────────────────────────────────────────── */
+.vd-nav-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+.vd-nav-logo:hover { opacity: 0.88; }
+
+/* ── Buttons ─────────────────────────────────────── */
+.vd-btn-primary {
+  background-color: var(--vd-primary);
+  color: #fff;
+  transition: background-color 0.18s ease;
+}
+.vd-btn-primary:hover { background-color: var(--vd-primary-dark); }
+
+/* ── Badges ──────────────────────────────────────── */
+.vd-badge {
+  background-color: var(--vd-accent-gold);
+  color: #1E1B4B;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.48rem;
+  border-radius: 9999px;
+  letter-spacing: 0.06em;
+}
+.vd-sale-badge {
+  background: var(--vd-accent-pink);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+
+/* ── Price text ──────────────────────────────────── */
+.vd-price { color: var(--vd-primary); font-weight: 700; }
+
+/* ── Footer legal links ───────────────────────────── */
+footer a:hover { color: var(--vd-primary) !important; }

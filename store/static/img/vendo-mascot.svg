@@ -1,0 +1,230 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 360">
+  <defs>
+    <!-- Machine body: violet gradient top-left → bottom-right -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </linearGradient>
+    <!-- Face panel: dark indigo gradient -->
+    <linearGradient id="faceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E1B4B"/>
+      <stop offset="100%" stop-color="#2E1065"/>
+    </linearGradient>
+    <!-- Glass panel: light blue gradient -->
+    <linearGradient id="glassGrad" x1="0%" y1="0%" x2="15%" y2="100%">
+      <stop offset="0%" stop-color="#EFF6FF"/>
+      <stop offset="100%" stop-color="#BFDBFE"/>
+    </linearGradient>
+    <!-- Eye iris: radial indigo -->
+    <radialGradient id="eyeGrad" cx="40%" cy="35%" r="60%">
+      <stop offset="0%"   stop-color="#818CF8"/>
+      <stop offset="65%"  stop-color="#4338CA"/>
+      <stop offset="100%" stop-color="#3730A3"/>
+    </radialGradient>
+    <!-- Body left-edge shine -->
+    <linearGradient id="bodyShine" x1="0%" y1="0%" x2="30%" y2="100%">
+      <stop offset="0%"   stop-color="white" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="machineShadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#1E1B4B" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Ground shadow -->
+  <ellipse cx="150" cy="346" rx="86" ry="11" fill="#1E1B4B" opacity="0.18"/>
+
+  <!-- ══════════════ MACHINE BODY ══════════════ -->
+  <rect x="42" y="24" width="216" height="275" rx="26" ry="26"
+        fill="url(#bodyGrad)" filter="url(#machineShadow)"/>
+  <!-- Shine overlay -->
+  <rect x="42" y="24" width="216" height="275" rx="26" ry="26"
+        fill="url(#bodyShine)"/>
+  <!-- Left-edge highlight streak -->
+  <rect x="49" y="52" width="7" height="222" rx="3.5"
+        fill="white" opacity="0.16"/>
+
+  <!-- ══════════════ ANTENNA ══════════════ -->
+  <line x1="150" y1="24" x2="150" y2="7"
+        stroke="#6D28D9" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="150" cy="7" r="10" fill="#A78BFA"/>
+  <circle cx="150" cy="7" r="6"  fill="#7C3AED"/>
+  <circle cx="146" cy="4" r="3"  fill="white" opacity="0.72"/>
+
+  <!-- ══════════════ FACE PANEL ══════════════ -->
+  <rect x="60" y="42" width="180" height="112" rx="15" ry="15"
+        fill="url(#faceGrad)"/>
+  <!-- Panel glow border -->
+  <rect x="60" y="42" width="180" height="112" rx="15" ry="15"
+        fill="none" stroke="#6D28D9" stroke-width="1.8" opacity="0.6"/>
+
+  <!-- ══════════════ LEFT EYE ══════════════ -->
+  <ellipse cx="112" cy="92" rx="26" ry="28" fill="white"/>
+  <ellipse cx="112" cy="95" rx="20" ry="22" fill="url(#eyeGrad)"/>
+  <ellipse cx="112" cy="96" rx="11" ry="12" fill="#1E1B4B"/>
+  <!-- Main shine -->
+  <circle cx="122" cy="84"  r="6.5" fill="white"/>
+  <!-- Secondary shine -->
+  <circle cx="106" cy="105" r="3"   fill="white" opacity="0.38"/>
+
+  <!-- ══════════════ RIGHT EYE ══════════════ -->
+  <ellipse cx="188" cy="92" rx="26" ry="28" fill="white"/>
+  <ellipse cx="188" cy="95" rx="20" ry="22" fill="url(#eyeGrad)"/>
+  <ellipse cx="188" cy="96" rx="11" ry="12" fill="#1E1B4B"/>
+  <circle cx="198" cy="84"  r="6.5" fill="white"/>
+  <circle cx="182" cy="105" r="3"   fill="white" opacity="0.38"/>
+
+  <!-- ══════════════ CHEEKS ══════════════ -->
+  <ellipse cx="78"  cy="124" rx="20" ry="13" fill="#FB7185" opacity="0.50"/>
+  <ellipse cx="222" cy="124" rx="20" ry="13" fill="#FB7185" opacity="0.50"/>
+
+  <!-- ══════════════ SMILE ══════════════ -->
+  <!-- Control point below endpoints = curve bows downward = smile -->
+  <path d="M 128 134 Q 150 153 172 134"
+        stroke="#FB7185" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+
+  <!-- ══════════════ BRAND STRIP ══════════════ -->
+  <rect x="42" y="157" width="216" height="25" fill="#1E1065" opacity="0.82"/>
+  <text x="150" y="174"
+        font-family="Arial, 'Helvetica Neue', sans-serif"
+        font-size="10" font-weight="bold" fill="#C4B5FD"
+        text-anchor="middle" letter-spacing="3">VENDO&#x2019;S DEALS</text>
+
+  <!-- ══════════════ GLASS PANEL ══════════════ -->
+  <rect x="60" y="186" width="180" height="100" rx="10" ry="10"
+        fill="url(#glassGrad)"/>
+  <rect x="60" y="186" width="180" height="100" rx="10" ry="10"
+        fill="none" stroke="#93C5FD" stroke-width="1.5"/>
+  <!-- Glass shine streak (left) -->
+  <rect x="64" y="190" width="44" height="92" rx="6"
+        fill="white" opacity="0.15"/>
+
+  <!-- ══════════════ ITEMS IN GLASS ══════════════ -->
+  <!--  Grid: cols x=96, 150, 204  |  rows y=222, 258  -->
+
+  <!-- ── SLOT 1,1: Gold Star ── -->
+  <g transform="translate(96,222)">
+    <!-- 5-point star, outer r=16, inner r=6.5 -->
+    <polygon points="0,-17  4.1,-5.7  16.2,-5.2  6.7,2.2  10.0,13.8
+                     0,7  -10.0,13.8  -6.7,2.2  -16.2,-5.2  -4.1,-5.7"
+             fill="#FBBF24" stroke="#F59E0B" stroke-width="1.2" stroke-linejoin="round"/>
+    <!-- Star highlight -->
+    <polygon points="0,-17 3,-9 7,-9" fill="white" opacity="0.36"/>
+  </g>
+
+  <!-- ── SLOT 1,2: Burger ── -->
+  <g transform="translate(150,222)">
+    <ellipse cx="0" cy="11"  rx="13"  ry="5"   fill="#CA8A04"/>  <!-- bottom bun -->
+    <ellipse cx="0" cy="5"   rx="11.5" ry="4.5" fill="#7C2D12"/>  <!-- patty -->
+    <ellipse cx="0" cy="0"   rx="13"  ry="3.5" fill="#15803D"/>  <!-- lettuce -->
+    <ellipse cx="0" cy="-5"  rx="11"  ry="3"   fill="#DC2626"/>  <!-- tomato -->
+    <ellipse cx="0" cy="-11" rx="13"  ry="8"   fill="#D97706"/>  <!-- top bun -->
+    <!-- Sesame seeds -->
+    <circle cx="-4" cy="-15" r="1.8" fill="#92400E"/>
+    <circle cx="3"  cy="-17" r="1.8" fill="#92400E"/>
+    <circle cx="8"  cy="-14" r="1.8" fill="#92400E"/>
+  </g>
+
+  <!-- ── SLOT 1,3: Lightning Bolt ── -->
+  <g transform="translate(204,222)">
+    <!-- Classic 6-point bolt polygon -->
+    <polygon points="2,-18  -7,0  -2,0  -10,18  10,-3  4,-3"
+             fill="#FDE047" stroke="#EAB308" stroke-width="1.2"/>
+    <!-- Bolt glow overlay -->
+    <polygon points="2,-18  -7,0  -2,0  -10,18  10,-3  4,-3"
+             fill="white" opacity="0.2"/>
+  </g>
+
+  <!-- ── SLOT 2,1: Game Controller ── -->
+  <g transform="translate(96,259)">
+    <!-- Body -->
+    <rect x="-17" y="-10" width="34" height="19" rx="9" fill="#4B5563"/>
+    <!-- Grips -->
+    <ellipse cx="-13" cy="6" rx="5" ry="7" fill="#374151"/>
+    <ellipse cx="13"  cy="6" rx="5" ry="7" fill="#374151"/>
+    <!-- D-pad horizontal -->
+    <rect x="-14" y="-4" width="10" height="4" rx="1" fill="#6B7280"/>
+    <!-- D-pad vertical -->
+    <rect x="-11" y="-7" width="4" height="10" rx="1" fill="#6B7280"/>
+    <!-- A / B buttons -->
+    <circle cx="10"  cy="-5" r="3" fill="#34D399"/>
+    <circle cx="14"  cy="-1" r="3" fill="#F87171"/>
+    <!-- Select / Start -->
+    <rect x="-3" y="-6" width="3" height="3" rx="1" fill="#9CA3AF"/>
+    <rect x="2"  y="-6" width="3" height="3" rx="1" fill="#9CA3AF"/>
+  </g>
+
+  <!-- ── SLOT 2,2: Gift Box ── -->
+  <g transform="translate(150,259)">
+    <!-- Box body -->
+    <rect x="-13" y="1"  width="26" height="14" rx="2" fill="#EC4899"/>
+    <!-- Lid -->
+    <rect x="-15" y="-8" width="30" height="11" rx="3" fill="#DB2777"/>
+    <!-- Ribbon vertical -->
+    <rect x="-2.5" y="-8" width="5" height="23" rx="1.5" fill="#FDE68A"/>
+    <!-- Ribbon horizontal -->
+    <rect x="-15"  y="-3" width="30" height="5"  rx="1.5" fill="#FDE68A"/>
+    <!-- Bow left loop -->
+    <ellipse cx="-7" cy="-13" rx="8" ry="5" fill="#FBBF24"
+             transform="rotate(-25,-7,-13)"/>
+    <!-- Bow right loop -->
+    <ellipse cx="7"  cy="-13" rx="8" ry="5" fill="#FBBF24"
+             transform="rotate(25,7,-13)"/>
+    <!-- Bow knot -->
+    <circle cx="0" cy="-13" r="4.5" fill="#F59E0B"/>
+    <circle cx="0" cy="-13" r="2.2" fill="#FDE68A"/>
+  </g>
+
+  <!-- ── SLOT 2,3: Cyan Gem ── -->
+  <g transform="translate(204,259)">
+    <!-- Pentagon diamond -->
+    <polygon points="0,-18  14,-5  10,14  -10,14  -14,-5"
+             fill="#67E8F9" stroke="#22D3EE" stroke-width="1.5"/>
+    <!-- Top facet (lighter) -->
+    <polygon points="0,-18  14,-5  0,-2  -14,-5" fill="#A5F3FC"/>
+    <!-- Right face (darker) -->
+    <polygon points="0,-2  14,-5  10,14"  fill="#0891B2" opacity="0.45"/>
+    <!-- Left face (darkest) -->
+    <polygon points="0,-2  -14,-5  -10,14" fill="#06B6D4" opacity="0.32"/>
+    <!-- Bottom face -->
+    <polygon points="0,-2  10,14  -10,14" fill="#22D3EE" opacity="0.38"/>
+    <!-- Shine lines -->
+    <line x1="-7" y1="-12" x2="-2" y2="-5" stroke="white" stroke-width="2"
+          stroke-linecap="round" opacity="0.82"/>
+    <line x1="2"  y1="-14" x2="4" y2="-9" stroke="white" stroke-width="1.5"
+          stroke-linecap="round" opacity="0.55"/>
+  </g>
+
+  <!-- ══════════════ COIN SLOT ══════════════ -->
+  <rect x="118" y="294" width="64" height="7" rx="3.5"
+        fill="#1E1065" opacity="0.85"/>
+  <rect x="124" y="296" width="52" height="3" rx="1.5"
+        fill="black" opacity="0.25"/>
+
+  <!-- ══════════════ DISPENSE LEDGE ══════════════ -->
+  <rect x="60" y="301" width="180" height="8" fill="#2E1065" opacity="0.6"/>
+
+  <!-- ══════════════ LEFT ARM ══════════════ -->
+  <!-- Upper arm extends left from machine edge -->
+  <rect x="18" y="202" width="28" height="17" rx="8.5" fill="#6D28D9"/>
+  <!-- Hand -->
+  <circle cx="18" cy="210" r="11" fill="#7C3AED"/>
+  <!-- Thumb -->
+  <ellipse cx="10" cy="200" rx="5.5" ry="4.5" fill="#7C3AED"
+           transform="rotate(30,10,200)"/>
+
+  <!-- ══════════════ RIGHT ARM ══════════════ -->
+  <rect x="254" y="202" width="28" height="17" rx="8.5" fill="#6D28D9"/>
+  <circle cx="282" cy="210" r="11" fill="#7C3AED"/>
+  <ellipse cx="290" cy="200" rx="5.5" ry="4.5" fill="#7C3AED"
+           transform="rotate(-30,290,200)"/>
+
+  <!-- ══════════════ FEET ══════════════ -->
+  <!-- Left foot -->
+  <rect x="74"  y="296" width="52" height="22" rx="12" fill="#4C1D95"/>
+  <rect x="80"  y="299" width="22" height="7"  rx="3.5" fill="#6D28D9" opacity="0.55"/>
+  <!-- Right foot -->
+  <rect x="174" y="296" width="52" height="22" rx="12" fill="#4C1D95"/>
+  <rect x="180" y="299" width="22" height="7"  rx="3.5" fill="#6D28D9" opacity="0.55"/>
+
+</svg>

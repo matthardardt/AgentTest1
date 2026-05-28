@@ -4,6 +4,7 @@ from .ordering_agent import OrderingAgent
 from .website_maintenance_agent import WebsiteMaintenanceAgent
 from .manager_agent import ManagerAgent
 from .golive_agent import GoLiveAgent
+from .design_agent import DesignAgent
 
 __all__ = [
     "ProductHuntingAgent",
@@ -12,4 +13,5 @@ __all__ = [
     "WebsiteMaintenanceAgent",
     "ManagerAgent",
     "GoLiveAgent",
+    "DesignAgent",
 ]
