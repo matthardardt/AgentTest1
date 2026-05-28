@@ -144,6 +144,93 @@ async def get_tracking_info(supplier_order_id: str) -> dict[str, Any]:
         return r.json()
 
 
+# ── Zendrop adapter ───────────────────────────────────────────────────────────
+
+async def zendrop_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
+    """Search Zendrop catalog for products."""
+    if not settings.zendrop_api_key:
+        return _mock_product_search(keyword, page_size)
+
+    headers = {"Authorization": f"Bearer {settings.zendrop_api_key}"}
+    params = {"search": keyword, "page": page, "limit": page_size}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get("https://api.zendrop.com/api/products", headers=headers, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+# ── Spocket adapter ────────────────────────────────────────────────────────────
+
+async def spocket_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
+    """Search Spocket marketplace for products."""
+    if not settings.spocket_api_key:
+        return _mock_product_search(keyword, page_size)
+
+    headers = {"Authorization": f"Bearer {settings.spocket_api_key}"}
+    params = {"q": keyword, "page": page, "per_page": page_size}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get("https://api.spocket.co/products", headers=headers, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+# ── AutoDS adapter ─────────────────────────────────────────────────────────────
+
+async def autods_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
+    """Search AutoDS for products across their sourced marketplaces."""
+    if not settings.autods_api_key:
+        return _mock_product_search(keyword, page_size)
+
+    headers = {"api-key": settings.autods_api_key}
+    params = {"keyword": keyword, "page": page, "limit": page_size}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            "https://api.autods.com/v2/products/search",
+            headers=headers,
+            params=params,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+# ── Printful adapter ───────────────────────────────────────────────────────────
+
+async def printful_get_products(keyword: str = "", page_size: int = 20) -> dict[str, Any]:
+    """Search Printful print-on-demand catalog."""
+    if not settings.printful_api_key:
+        return _mock_printful_catalog(keyword, page_size)
+
+    headers = {"Authorization": f"Bearer {settings.printful_api_key}"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get("https://api.printful.com/products", headers=headers)
+        r.raise_for_status()
+        data = r.json()
+
+    products = data.get("result", [])
+    if keyword:
+        kw = keyword.lower()
+        products = [
+            p for p in products
+            if kw in p.get("type", "").lower() or kw in p.get("type_name", "").lower()
+        ]
+    return {"products": products[:page_size], "total": len(products), "source": "printful"}
+
+
+async def printful_get_product_variants(sync_product_id: str) -> dict[str, Any]:
+    """Get variants and pricing for a specific Printful product."""
+    if not settings.printful_api_key:
+        return {"sync_product_id": sync_product_id, "source": "mock", "variants": []}
+
+    headers = {"Authorization": f"Bearer {settings.printful_api_key}"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            f"https://api.printful.com/sync/products/{sync_product_id}",
+            headers=headers,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
 # ── Mock data for development / no API keys ────────────────────────────────────
 
 def _mock_product_search(keyword: str, count: int) -> dict[str, Any]:
@@ -198,18 +285,49 @@ def _mock_tracking(supplier_order_id: str) -> dict[str, Any]:
     }
 
 
+def _mock_printful_catalog(keyword: str, count: int) -> dict[str, Any]:
+    templates = [
+        {"type": "T-SHIRT", "type_name": "Unisex Staple T-Shirt | Bella + Canvas 3001"},
+        {"type": "HOODIE", "type_name": "Unisex Heavy Blend Hoodie | Gildan 18500"},
+        {"type": "MUG", "type_name": "White Glossy Mug"},
+        {"type": "POSTER", "type_name": "Enhanced Matte Paper Poster"},
+        {"type": "PHONE-CASE", "type_name": "Tough Phone Case"},
+    ]
+    kw = keyword.lower() if keyword else ""
+    products = [
+        {
+            "id": f"mock_pf_{t['type'].lower()}",
+            "type": t["type"],
+            "type_name": t["type_name"],
+            "base_price_usd": round(8.0 + i * 4.5, 2),
+            "image_url": f"https://placeholder.com/300x300?text={t['type']}",
+            "source": "mock",
+        }
+        for i, t in enumerate(templates)
+        if not kw or kw in t["type"].lower() or kw in t["type_name"].lower()
+    ]
+    return {"products": products[:count], "total": len(products), "source": "mock"}
+
+
 # ── Tool schemas ───────────────────────────────────────────────────────────────
 
 class SupplierTools:
     SCHEMAS = [
         {
             "name": "search_supplier_products",
-            "description": "Search AliExpress or CJ Dropshipping for products to stock.",
+            "description": (
+                "Search any configured supplier platform for dropshippable products. "
+                "Platforms: cj (CJ Dropshipping), aliexpress, zendrop, spocket, autods, printful."
+            ),
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "keyword": {"type": "string", "description": "Product search keyword"},
-                    "platform": {"type": "string", "enum": ["aliexpress", "cj"], "description": "Supplier platform"},
+                    "platform": {
+                        "type": "string",
+                        "enum": ["cj", "aliexpress", "zendrop", "spocket", "autods", "printful"],
+                        "description": "Supplier platform to search",
+                    },
                     "page_size": {"type": "integer", "default": 20},
                 },
                 "required": ["keyword"],
@@ -254,6 +372,14 @@ class SupplierTools:
     ) -> dict[str, Any]:
         if platform == "aliexpress":
             return await aliexpress_search_products(keyword, page_size=page_size)
+        if platform == "zendrop":
+            return await zendrop_search_products(keyword, page_size=page_size)
+        if platform == "spocket":
+            return await spocket_search_products(keyword, page_size=page_size)
+        if platform == "autods":
+            return await autods_search_products(keyword, page_size=page_size)
+        if platform == "printful":
+            return await printful_get_products(keyword, page_size=page_size)
         return await cj_search_products(keyword, page_size=page_size)
 
     @staticmethod

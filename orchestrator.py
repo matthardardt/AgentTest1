@@ -28,6 +28,7 @@ from agents.website_maintenance_agent import WebsiteMaintenanceAgent
 from agents.manager_agent import ManagerAgent
 from agents.design_agent import DesignAgent
 from agents.dynamic_agent import DynamicAgent
+from agents.supplier_sourcing_agent import SupplierSourcingAgent
 
 settings = get_settings()
 console = Console()
@@ -87,12 +88,13 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
         console.rule()
 
     # Instantiate agents
-    product_agent = ProductHuntingAgent()
-    pricing_agent = PricingAgent()
-    ordering_agent = OrderingAgent()
-    website_agent = WebsiteMaintenanceAgent()
-    design_agent  = DesignAgent()
-    manager_agent = ManagerAgent()
+    product_agent          = ProductHuntingAgent()
+    pricing_agent          = PricingAgent()
+    ordering_agent         = OrderingAgent()
+    website_agent          = WebsiteMaintenanceAgent()
+    design_agent           = DesignAgent()
+    manager_agent          = ManagerAgent()
+    supplier_sourcing_agent = SupplierSourcingAgent()
 
     # Print schedule table
     table = Table(title="Agent Schedule", show_header=True)
@@ -101,12 +103,13 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
     table.add_column("Model")
 
     schedules = [
-        (product_agent,  settings.product_agent_interval,  "Product Hunting"),
-        (pricing_agent,  settings.pricing_agent_interval,  "Pricing"),
-        (ordering_agent, settings.ordering_agent_interval, "Ordering / Fulfillment"),
-        (website_agent,  settings.website_agent_interval,  "Website Maintenance"),
-        (design_agent,   settings.website_agent_interval,  "Graphic Design"),
-        (manager_agent,  settings.manager_agent_interval,  "Manager"),
+        (product_agent,           settings.product_agent_interval,           "Product Hunting"),
+        (pricing_agent,           settings.pricing_agent_interval,           "Pricing"),
+        (ordering_agent,          settings.ordering_agent_interval,          "Ordering / Fulfillment"),
+        (website_agent,           settings.website_agent_interval,           "Website Maintenance"),
+        (design_agent,            settings.website_agent_interval,           "Graphic Design"),
+        (manager_agent,           settings.manager_agent_interval,           "Manager"),
+        (supplier_sourcing_agent, settings.supplier_sourcing_agent_interval, "Supplier Sourcing"),
     ]
     for agent, interval, label in schedules:
         table.add_row(label, f"{interval}s", agent.model)
@@ -142,6 +145,11 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
             manager_agent.run_management_cycle,
             settings.manager_agent_interval,
             "Manager",
+        )),
+        asyncio.create_task(run_agent_loop(
+            supplier_sourcing_agent.run_sourcing_cycle,
+            settings.supplier_sourcing_agent_interval,
+            "Supplier Sourcing",
         )),
     ]
 

@@ -15,11 +15,17 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./dropshipping.db"
 
-    # Supplier APIs
+    # Supplier APIs – existing
     aliexpress_app_key: str = ""
     aliexpress_app_secret: str = ""
     cjdropshipping_api_key: str = ""
     cjdropshipping_email: str = ""
+
+    # Supplier APIs – new platforms
+    zendrop_api_key: str = ""
+    spocket_api_key: str = ""
+    autods_api_key: str = ""
+    printful_api_key: str = ""
 
     # Payment
     stripe_api_key: str = ""
@@ -41,6 +47,7 @@ class Settings(BaseSettings):
     ordering_agent_model: str = "claude-sonnet-4-6"
     website_agent_model: str = "claude-sonnet-4-6"
     manager_agent_model: str = "claude-opus-4-8"
+    supplier_sourcing_agent_model: str = "claude-sonnet-4-6"
 
     # Agent schedules (seconds between runs)
     product_agent_interval: int = 3600       # 1 hour
@@ -48,6 +55,7 @@ class Settings(BaseSettings):
     ordering_agent_interval: int = 300       # 5 minutes
     website_agent_interval: int = 7200       # 2 hours
     manager_agent_interval: int = 14400      # 4 hours
+    supplier_sourcing_agent_interval: int = 21600  # 6 hours
 
     class Config:
         env_file = ".env"
