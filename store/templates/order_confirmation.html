@@ -72,22 +72,23 @@
 <script>
 const ORDER_ID = {{ order.id|tojson }};
 const params = new URLSearchParams(location.search);
+// Customer returned from Stripe checkout (success_url carries session_id; older
+// links used paid=1).
+const returnedFromPayment = params.get('session_id') || params.get('paid');
 
-// Returned from a successful Stripe checkout: clear the cart.
-if (params.get('paid')) {
+if (returnedFromPayment) {
   localStorage.removeItem('cart');
   const badge = document.getElementById('cart-badge');
   if (badge) { badge.classList.add('hidden'); badge.textContent = '0'; }
 }
 
-// If we arrived right after payment, the confirming webhook may lag by a second
-// or two. Poll briefly so the status flips from pending → paid without a manual
-// refresh.
+// The server already verifies payment with Stripe on load. This poll is a
+// secondary safety net in case confirmation lands a moment later.
 const PAID_STATES = ['paid','processing','ordered_from_supplier','shipped','delivered'];
 const statusEl = document.getElementById('order-status');
 function isPaid() { return PAID_STATES.includes((statusEl.textContent || '').trim().toLowerCase()); }
 
-if (params.get('paid') && !isPaid()) {
+if (returnedFromPayment && !isPaid()) {
   let tries = 0;
   const timer = setInterval(async () => {
     tries++;

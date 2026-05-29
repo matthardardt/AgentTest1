@@ -185,6 +185,46 @@ async def _mark_order_paid(order_id: str, payment_intent_id: str | None) -> bool
         return False
 
 
+def _sfield(obj, key, default=None):
+    """Read a field from a Stripe object or plain dict."""
+    try:
+        return obj[key]
+    except (KeyError, TypeError):
+        return default
+
+
+async def reconcile_pending_order(order_id: str) -> str | None:
+    """Fallback confirmation that does NOT rely on the webhook.
+
+    If a PENDING order has a stored Stripe Checkout Session (``cs_...``) that
+    Stripe reports as paid, mark the order PAID. Safe + idempotent; only calls
+    Stripe when the order is still pending. Returns the new status if changed.
+    """
+    if not payments.stripe_enabled():
+        return None
+    async with AsyncSessionLocal() as db:
+        order = (await db.execute(select(Order).where(Order.id == order_id))).scalar_one_or_none()
+        if not order or order.status != OrderStatus.PENDING:
+            return None
+        session_id = order.payment_id or ""
+        if not session_id.startswith("cs_"):
+            return None
+        try:
+            session = await payments.get_checkout_session(session_id)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("reconcile: could not retrieve session %s: %s", session_id, exc)
+            return None
+        if _sfield(session, "payment_status") == "paid":
+            order.status = OrderStatus.PAID
+            pi = _sfield(session, "payment_intent")
+            if pi:
+                order.payment_id = pi
+            await db.commit()
+            log.info("Order %s marked PAID via reconcile (session %s)", order_id, session_id)
+            return "paid"
+        return None
+
+
 @router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     """Stripe webhook endpoint. Only a verified event can mark an order paid."""

@@ -101,6 +101,12 @@ async def order_page(order_id: str, request: Request, db: AsyncSession = Depends
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    # Webhook-independent confirmation: if the customer has returned from Stripe
+    # and the order is still pending, verify payment directly with Stripe.
+    if order.status == OrderStatus.PENDING:
+        from store.routes.orders import reconcile_pending_order
+        if await reconcile_pending_order(order.id):
+            await db.refresh(order)
     items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order_id))
     items = items_result.scalars().all()
     return templates.TemplateResponse(request, "order_confirmation.html", {

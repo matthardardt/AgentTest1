@@ -177,6 +177,25 @@ async def seed_catalog(key: str = "", db: AsyncSession = Depends(get_db)):
             "message": f"Seeded {added} products. Refresh the homepage!"}
 
 
+@router.get("/reconcile", dependencies=[Depends(require_admin)])
+async def reconcile_orders(db: AsyncSession = Depends(get_db)):
+    """Verify all PENDING orders against Stripe and mark paid ones as PAID.
+
+    A webhook-independent safety net: useful if the Stripe webhook was
+    misconfigured/undelivered. Idempotent.
+    """
+    from store.routes.orders import reconcile_pending_order
+
+    pending = (await db.execute(
+        select(Order).where(Order.status == OrderStatus.PENDING)
+    )).scalars().all()
+    changed = []
+    for o in pending:
+        if await reconcile_pending_order(o.id):
+            changed.append(o.order_number)
+    return {"checked": len(pending), "reconciled_to_paid": changed}
+
+
 @router.get("/metrics", dependencies=[Depends(require_admin)])
 async def recent_metrics(limit: int = 100, db: AsyncSession = Depends(get_db)):
     result = await db.execute(

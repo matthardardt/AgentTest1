@@ -86,7 +86,7 @@ async def create_checkout_session(
         client_reference_id=order_id,
         metadata=metadata,
         payment_intent_data={"metadata": metadata},
-        success_url=f"{base_url}/order/{order_id}?paid=1",
+        success_url=f"{base_url}/order/{order_id}?session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{base_url}/checkout?canceled=1",
     )
 
