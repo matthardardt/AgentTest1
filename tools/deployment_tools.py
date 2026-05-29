@@ -85,13 +85,18 @@ async def check_launch_readiness() -> dict[str, Any]:
         )
 
     # 4. Supplier integration — required for real fulfillment
-    if settings.cjdropshipping_api_key or settings.aliexpress_app_key:
-        passed.append("Supplier API configured — orders can be auto-fulfilled.")
+    any_supplier = any([
+        settings.aliexpress_app_key, settings.dsers_api_key,
+        settings.zendrop_api_key, settings.spocket_api_key,
+        settings.autods_api_key, settings.printful_api_key,
+    ])
+    if any_supplier:
+        passed.append("At least one supplier API configured — orders can be auto-fulfilled.")
     else:
         human_actions.append(
-            "Add CJ Dropshipping (CJDROPSHIPPING_API_KEY/EMAIL) or AliExpress "
-            "(ALIEXPRESS_APP_KEY/SECRET) credentials. Until then the ordering agent "
-            "runs in MOCK mode and won't place real supplier orders."
+            "Configure at least one supplier: AliExpress (ALIEXPRESS_APP_KEY/SECRET) + "
+            "DSers (DSERS_API_KEY) for AliExpress orders, or Zendrop/Spocket/AutoDS/Printful. "
+            "Until then the ordering agent runs in MOCK mode."
         )
 
     # 5. Email notifications
@@ -146,8 +151,7 @@ async def check_launch_readiness() -> dict[str, Any]:
     code_ready = len(blockers) == 0
     return {
         "code_ready": code_ready,
-        "revenue_ready": code_ready and bool(settings.stripe_api_key)
-                         and bool(settings.cjdropshipping_api_key or settings.aliexpress_app_key),
+        "revenue_ready": code_ready and bool(settings.stripe_api_key) and any_supplier,
         "blockers": blockers,
         "human_actions_required": human_actions,
         "warnings": warnings,
@@ -242,9 +246,9 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
-      - key: CJDROPSHIPPING_API_KEY
+      - key: ALIEXPRESS_APP_KEY
         sync: false
-      - key: CJDROPSHIPPING_EMAIL
+      - key: DSERS_API_KEY
         sync: false
       - key: SECRET_KEY
         generateValue: true
@@ -264,9 +268,9 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: CJDROPSHIPPING_API_KEY
+      - key: ALIEXPRESS_APP_KEY
         sync: false
-      - key: CJDROPSHIPPING_EMAIL
+      - key: DSERS_API_KEY
         sync: false
       - key: SERP_API_KEY
         sync: false
@@ -314,7 +318,8 @@ This project ships with artifacts for several platforms. Pick one.
 1. Copy `.env.example` to `.env` and fill in:
    - `ANTHROPIC_API_KEY` (required — powers all agents)
    - `STRIPE_API_KEY` + `STRIPE_WEBHOOK_SECRET` (to take real payments)
-   - `CJDROPSHIPPING_API_KEY` + `CJDROPSHIPPING_EMAIL` (to fulfill real orders)
+   - `ALIEXPRESS_APP_KEY` + `ALIEXPRESS_APP_SECRET` + `DSERS_API_KEY` (AliExpress orders)
+   - Or `ZENDROP_API_KEY` / `SPOCKET_API_KEY` / `AUTODS_API_KEY` / `PRINTFUL_API_KEY`
    - `SMTP_*` (to email customers)
    - `SECRET_KEY` (random string)
    - `STORE_URL` (your public domain)
@@ -335,7 +340,7 @@ service + worker + a shared disk automatically.
 ```bash
 fly launch --no-deploy   # accept the existing fly.toml
 fly volumes create dropdata --size 1
-fly secrets set ANTHROPIC_API_KEY=... STRIPE_API_KEY=... CJDROPSHIPPING_API_KEY=...
+fly secrets set ANTHROPIC_API_KEY=... STRIPE_API_KEY=... ALIEXPRESS_APP_KEY=... DSERS_API_KEY=...
 fly deploy
 ```
 

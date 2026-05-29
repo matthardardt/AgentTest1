@@ -1,10 +1,10 @@
 """
 Supplier integration tools.
-Implements AliExpress and CJ Dropshipping adapters.
+Active platforms: AliExpress (search) + DSers (AliExpress orders),
+Zendrop, Spocket, AutoDS, Printful.
 Falls back to mock data when API keys are not configured.
 """
 
-import json
 import uuid
 from typing import Any
 
@@ -14,14 +14,15 @@ from config import get_settings
 
 settings = get_settings()
 
+_SHIPPING = ["shipping_name", "shipping_address", "shipping_city",
+             "shipping_country", "shipping_zip", "shipping_phone"]
 
-# ── AliExpress adapter ─────────────────────────────────────────────────────────
+
+# ── AliExpress adapter (search only — orders go via DSers) ────────────────────
 
 async def aliexpress_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-    """Search AliExpress for products matching keyword."""
     if not settings.aliexpress_app_key:
-        return _mock_product_search(keyword, page_size)
-
+        return _mock_search(keyword, page_size)
     params = {
         "method": "aliexpress.affiliate.product.query",
         "app_key": settings.aliexpress_app_key,
@@ -39,10 +40,8 @@ async def aliexpress_search_products(keyword: str, page: int = 1, page_size: int
 
 
 async def aliexpress_get_product(product_id: str) -> dict[str, Any]:
-    """Get detailed info for an AliExpress product."""
     if not settings.aliexpress_app_key:
-        return _mock_product_detail(product_id)
-
+        return _mock_detail(product_id)
     params = {
         "method": "aliexpress.affiliate.productdetail.get",
         "app_key": settings.aliexpress_app_key,
@@ -55,168 +54,82 @@ async def aliexpress_get_product(product_id: str) -> dict[str, Any]:
         return r.json()
 
 
-# ── CJ Dropshipping adapter ────────────────────────────────────────────────────
-
-async def cj_get_token() -> str | None:
-    """Obtain CJ Dropshipping access token."""
-    if not settings.cjdropshipping_api_key:
-        return None
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.post(
-            "https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken",
-            json={"email": settings.cjdropshipping_email, "password": settings.cjdropshipping_api_key},
-        )
-        r.raise_for_status()
-        return r.json().get("data", {}).get("accessToken")
-
-
-async def cj_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-    """Search CJ Dropshipping for products."""
-    token = await cj_get_token()
-    if not token:
-        return _mock_product_search(keyword, page_size)
-
-    headers = {"CJ-Access-Token": token}
-    params = {"productNameEn": keyword, "pageNum": page, "pageSize": page_size}
-    async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get(
-            "https://developers.cjdropshipping.com/api2.0/v1/product/list",
-            headers=headers,
-            params=params,
-        )
-        r.raise_for_status()
-        return r.json()
-
-
-async def cj_place_order(
-    product_id: str,
-    quantity: int,
-    shipping_name: str,
-    shipping_address: str,
-    shipping_city: str,
-    shipping_country: str,
-    shipping_zip: str,
-    shipping_phone: str,
-) -> dict[str, Any]:
-    """Place a dropship order via CJ Dropshipping."""
-    token = await cj_get_token()
-    if not token:
-        return _mock_place_order(product_id, quantity, shipping_name)
-
-    headers = {"CJ-Access-Token": token}
-    payload = {
-        "orderNumber": str(uuid.uuid4()),
-        "products": [{"vid": product_id, "quantity": quantity}],
-        "shippingInfo": {
-            "consigneeID": str(uuid.uuid4()),
-            "consigneeName": shipping_name,
-            "address": shipping_address,
-            "city": shipping_city,
-            "country": shipping_country,
-            "zipCode": shipping_zip,
-            "phone": shipping_phone,
-        },
-    }
-    async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.post(
-            "https://developers.cjdropshipping.com/api2.0/v1/shopping/order/createOrderV2",
-            headers=headers,
-            json=payload,
-        )
-        r.raise_for_status()
-        return r.json()
-
-
-async def get_tracking_info(supplier_order_id: str) -> dict[str, Any]:
-    """Get tracking information for a supplier order."""
-    token = await cj_get_token()
-    if not token:
-        return _mock_tracking(supplier_order_id)
-
-    headers = {"CJ-Access-Token": token}
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            "https://developers.cjdropshipping.com/api2.0/v1/shopping/order/getOrderDetail",
-            headers=headers,
-            params={"orderID": supplier_order_id},
-        )
-        r.raise_for_status()
-        return r.json()
-
-
 # ── DSers adapter (AliExpress order automation) ───────────────────────────────
-# Official AliExpress dropshipping partner. Handles order placement & tracking.
 # Docs: https://www.dsers.com/partner-api/
 
 async def dsers_place_order(
-    product_id: str,
-    variant_id: str,
-    quantity: int,
-    shipping_name: str,
-    shipping_address: str,
-    shipping_city: str,
-    shipping_country: str,
-    shipping_zip: str,
-    shipping_phone: str,
+    product_id: str, variant_id: str, quantity: int,
+    shipping_name: str, shipping_address: str, shipping_city: str,
+    shipping_country: str, shipping_zip: str, shipping_phone: str,
 ) -> dict[str, Any]:
-    """Place an AliExpress order via DSers."""
     if not settings.dsers_api_key:
-        return _mock_place_order(product_id, quantity, shipping_name)
-
+        return _mock_order(product_id, quantity, shipping_name)
     headers = {"api-token": settings.dsers_api_key, "Content-Type": "application/json"}
     payload = {
-        "products": [
-            {
-                "product_id": product_id,
-                "variant_id": variant_id,
-                "quantity": quantity,
-            }
-        ],
+        "products": [{"product_id": product_id, "variant_id": variant_id, "quantity": quantity}],
         "shipping_address": {
-            "name": shipping_name,
-            "address1": shipping_address,
-            "city": shipping_city,
-            "country_code": shipping_country,
-            "zip": shipping_zip,
-            "phone": shipping_phone,
+            "name": shipping_name, "address1": shipping_address,
+            "city": shipping_city, "country_code": shipping_country,
+            "zip": shipping_zip, "phone": shipping_phone,
         },
     }
     async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.post(
-            "https://openapi.dsers.com/open/v1/orders/create",
-            headers=headers,
-            json=payload,
-        )
+        r = await client.post("https://openapi.dsers.com/open/v1/orders/create",
+                              headers=headers, json=payload)
         r.raise_for_status()
         return r.json()
 
 
-async def dsers_get_order(dsers_order_id: str) -> dict[str, Any]:
-    """Get order status and tracking from DSers."""
+async def dsers_get_order(order_id: str) -> dict[str, Any]:
     if not settings.dsers_api_key:
-        return _mock_tracking(dsers_order_id)
-
+        return _mock_tracking(order_id)
     headers = {"api-token": settings.dsers_api_key}
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            f"https://openapi.dsers.com/open/v1/orders/{dsers_order_id}",
-            headers=headers,
-        )
+        r = await client.get(f"https://openapi.dsers.com/open/v1/orders/{order_id}",
+                             headers=headers)
         r.raise_for_status()
         return r.json()
 
 
-# ── Zendrop adapter ───────────────────────────────────────────────────────────
+# ── Zendrop adapter ────────────────────────────────────────────────────────────
 
 async def zendrop_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-    """Search Zendrop catalog for products."""
     if not settings.zendrop_api_key:
-        return _mock_product_search(keyword, page_size)
-
+        return _mock_search(keyword, page_size)
     headers = {"Authorization": f"Bearer {settings.zendrop_api_key}"}
-    params = {"search": keyword, "page": page, "limit": page_size}
     async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get("https://api.zendrop.com/api/products", headers=headers, params=params)
+        r = await client.get("https://api.zendrop.com/api/products",
+                             headers=headers, params={"search": keyword, "page": page, "limit": page_size})
+        r.raise_for_status()
+        return r.json()
+
+
+async def zendrop_place_order(
+    product_id: str, variant_id: str, quantity: int,
+    shipping_name: str, shipping_address: str, shipping_city: str,
+    shipping_country: str, shipping_zip: str, shipping_phone: str,
+) -> dict[str, Any]:
+    if not settings.zendrop_api_key:
+        return _mock_order(product_id, quantity, shipping_name)
+    headers = {"Authorization": f"Bearer {settings.zendrop_api_key}"}
+    payload = {
+        "product_id": product_id, "variant_id": variant_id, "quantity": quantity,
+        "shipping": {"name": shipping_name, "address": shipping_address, "city": shipping_city,
+                     "country": shipping_country, "zip": shipping_zip, "phone": shipping_phone},
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post("https://api.zendrop.com/api/orders",
+                              headers=headers, json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+async def zendrop_get_order(order_id: str) -> dict[str, Any]:
+    if not settings.zendrop_api_key:
+        return _mock_tracking(order_id)
+    headers = {"Authorization": f"Bearer {settings.zendrop_api_key}"}
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(f"https://api.zendrop.com/api/orders/{order_id}", headers=headers)
         r.raise_for_status()
         return r.json()
 
@@ -224,14 +137,42 @@ async def zendrop_search_products(keyword: str, page: int = 1, page_size: int = 
 # ── Spocket adapter ────────────────────────────────────────────────────────────
 
 async def spocket_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-    """Search Spocket marketplace for products."""
     if not settings.spocket_api_key:
-        return _mock_product_search(keyword, page_size)
-
+        return _mock_search(keyword, page_size)
     headers = {"Authorization": f"Bearer {settings.spocket_api_key}"}
-    params = {"q": keyword, "page": page, "per_page": page_size}
     async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get("https://api.spocket.co/products", headers=headers, params=params)
+        r = await client.get("https://api.spocket.co/products",
+                             headers=headers, params={"q": keyword, "page": page, "per_page": page_size})
+        r.raise_for_status()
+        return r.json()
+
+
+async def spocket_place_order(
+    product_id: str, variant_id: str, quantity: int,
+    shipping_name: str, shipping_address: str, shipping_city: str,
+    shipping_country: str, shipping_zip: str, shipping_phone: str,
+) -> dict[str, Any]:
+    if not settings.spocket_api_key:
+        return _mock_order(product_id, quantity, shipping_name)
+    headers = {"Authorization": f"Bearer {settings.spocket_api_key}"}
+    payload = {
+        "variant_id": variant_id, "quantity": quantity,
+        "shipping_address": {"name": shipping_name, "address1": shipping_address,
+                             "city": shipping_city, "country": shipping_country,
+                             "zip": shipping_zip, "phone": shipping_phone},
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post("https://api.spocket.co/orders", headers=headers, json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+async def spocket_get_order(order_id: str) -> dict[str, Any]:
+    if not settings.spocket_api_key:
+        return _mock_tracking(order_id)
+    headers = {"Authorization": f"Bearer {settings.spocket_api_key}"}
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(f"https://api.spocket.co/orders/{order_id}", headers=headers)
         r.raise_for_status()
         return r.json()
 
@@ -239,18 +180,43 @@ async def spocket_search_products(keyword: str, page: int = 1, page_size: int = 
 # ── AutoDS adapter ─────────────────────────────────────────────────────────────
 
 async def autods_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-    """Search AutoDS for products across their sourced marketplaces."""
     if not settings.autods_api_key:
-        return _mock_product_search(keyword, page_size)
-
+        return _mock_search(keyword, page_size)
     headers = {"api-key": settings.autods_api_key}
-    params = {"keyword": keyword, "page": page, "limit": page_size}
     async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get(
-            "https://api.autods.com/v2/products/search",
-            headers=headers,
-            params=params,
-        )
+        r = await client.get("https://api.autods.com/v2/products/search",
+                             headers=headers, params={"keyword": keyword, "page": page, "limit": page_size})
+        r.raise_for_status()
+        return r.json()
+
+
+async def autods_place_order(
+    product_id: str, variant_id: str, quantity: int,
+    shipping_name: str, shipping_address: str, shipping_city: str,
+    shipping_country: str, shipping_zip: str, shipping_phone: str,
+) -> dict[str, Any]:
+    if not settings.autods_api_key:
+        return _mock_order(product_id, quantity, shipping_name)
+    headers = {"api-key": settings.autods_api_key}
+    payload = {
+        "product_id": product_id, "variant_id": variant_id, "quantity": quantity,
+        "shipping_address": {"name": shipping_name, "address1": shipping_address,
+                             "city": shipping_city, "country_code": shipping_country,
+                             "zip": shipping_zip, "phone": shipping_phone},
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post("https://api.autods.com/v2/orders",
+                              headers=headers, json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+async def autods_get_order(order_id: str) -> dict[str, Any]:
+    if not settings.autods_api_key:
+        return _mock_tracking(order_id)
+    headers = {"api-key": settings.autods_api_key}
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(f"https://api.autods.com/v2/orders/{order_id}", headers=headers)
         r.raise_for_status()
         return r.json()
 
@@ -258,60 +224,80 @@ async def autods_search_products(keyword: str, page: int = 1, page_size: int = 2
 # ── Printful adapter ───────────────────────────────────────────────────────────
 
 async def printful_get_products(keyword: str = "", page_size: int = 20) -> dict[str, Any]:
-    """Search Printful print-on-demand catalog."""
     if not settings.printful_api_key:
-        return _mock_printful_catalog(keyword, page_size)
-
+        return _mock_printful(keyword, page_size)
     headers = {"Authorization": f"Bearer {settings.printful_api_key}"}
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get("https://api.printful.com/products", headers=headers)
         r.raise_for_status()
-        data = r.json()
-
-    products = data.get("result", [])
+    products = r.json().get("result", [])
     if keyword:
         kw = keyword.lower()
-        products = [
-            p for p in products
-            if kw in p.get("type", "").lower() or kw in p.get("type_name", "").lower()
-        ]
+        products = [p for p in products
+                    if kw in p.get("type", "").lower() or kw in p.get("type_name", "").lower()]
     return {"products": products[:page_size], "total": len(products), "source": "printful"}
 
 
 async def printful_get_product_variants(sync_product_id: str) -> dict[str, Any]:
-    """Get variants and pricing for a specific Printful product."""
     if not settings.printful_api_key:
         return {"sync_product_id": sync_product_id, "source": "mock", "variants": []}
-
     headers = {"Authorization": f"Bearer {settings.printful_api_key}"}
     async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get(
-            f"https://api.printful.com/sync/products/{sync_product_id}",
-            headers=headers,
-        )
+        r = await client.get(f"https://api.printful.com/sync/products/{sync_product_id}",
+                             headers=headers)
         r.raise_for_status()
         return r.json()
 
 
-# ── Mock data for development / no API keys ────────────────────────────────────
+async def printful_place_order(
+    product_id: str, variant_id: str, quantity: int,
+    shipping_name: str, shipping_address: str, shipping_city: str,
+    shipping_country: str, shipping_zip: str, shipping_phone: str,
+) -> dict[str, Any]:
+    if not settings.printful_api_key:
+        return _mock_order(product_id, quantity, shipping_name)
+    headers = {"Authorization": f"Bearer {settings.printful_api_key}"}
+    payload = {
+        "recipient": {"name": shipping_name, "address1": shipping_address,
+                      "city": shipping_city, "country_code": shipping_country,
+                      "zip": shipping_zip, "phone": shipping_phone},
+        "items": [{"sync_variant_id": variant_id or product_id, "quantity": quantity}],
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post("https://api.printful.com/orders", headers=headers, json=payload)
+        r.raise_for_status()
+        return r.json()
 
-def _mock_product_search(keyword: str, count: int) -> dict[str, Any]:
-    products = []
-    for i in range(min(count, 5)):
-        products.append({
+
+async def printful_get_order(order_id: str) -> dict[str, Any]:
+    if not settings.printful_api_key:
+        return _mock_tracking(order_id)
+    headers = {"Authorization": f"Bearer {settings.printful_api_key}"}
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(f"https://api.printful.com/orders/{order_id}", headers=headers)
+        r.raise_for_status()
+        return r.json()
+
+
+# ── Mock data ─────────────────────────────────────────────────────────────────
+
+def _mock_search(keyword: str, count: int) -> dict[str, Any]:
+    products = [
+        {
             "product_id": f"mock_{keyword.replace(' ', '_')}_{i}",
             "name": f"{keyword.title()} Product {i + 1}",
             "price_usd": round(5.0 + i * 3.5, 2),
             "image_url": f"https://placeholder.com/300x300?text={keyword}+{i}",
             "rating": round(4.0 + (i % 3) * 0.3, 1),
             "orders_count": 100 + i * 50,
-            "supplier": "mock_supplier",
             "shipping_days": 7 + i * 2,
-        })
+        }
+        for i in range(min(count, 5))
+    ]
     return {"products": products, "total": count, "source": "mock"}
 
 
-def _mock_product_detail(product_id: str) -> dict[str, Any]:
+def _mock_detail(product_id: str) -> dict[str, Any]:
     return {
         "product_id": product_id,
         "name": f"Product {product_id}",
@@ -324,7 +310,7 @@ def _mock_product_detail(product_id: str) -> dict[str, Any]:
     }
 
 
-def _mock_place_order(product_id: str, quantity: int, name: str) -> dict[str, Any]:
+def _mock_order(product_id: str, quantity: int, name: str) -> dict[str, Any]:
     return {
         "success": True,
         "supplier_order_id": f"MOCK-{uuid.uuid4().hex[:8].upper()}",
@@ -336,91 +322,87 @@ def _mock_place_order(product_id: str, quantity: int, name: str) -> dict[str, An
     }
 
 
-def _mock_tracking(supplier_order_id: str) -> dict[str, Any]:
+def _mock_tracking(order_id: str) -> dict[str, Any]:
     return {
-        "supplier_order_id": supplier_order_id,
+        "supplier_order_id": order_id,
         "status": "in_transit",
-        "tracking_number": f"MOCK{supplier_order_id[-6:].upper()}",
+        "tracking_number": f"MOCK{order_id[-6:].upper()}",
         "tracking_url": "https://track.example.com",
         "estimated_delivery": "7-14 days",
         "source": "mock",
     }
 
 
-def _mock_printful_catalog(keyword: str, count: int) -> dict[str, Any]:
+def _mock_printful(keyword: str, count: int) -> dict[str, Any]:
     templates = [
-        {"type": "T-SHIRT", "type_name": "Unisex Staple T-Shirt | Bella + Canvas 3001"},
-        {"type": "HOODIE", "type_name": "Unisex Heavy Blend Hoodie | Gildan 18500"},
-        {"type": "MUG", "type_name": "White Glossy Mug"},
-        {"type": "POSTER", "type_name": "Enhanced Matte Paper Poster"},
+        {"type": "T-SHIRT",    "type_name": "Unisex Staple T-Shirt | Bella + Canvas 3001"},
+        {"type": "HOODIE",     "type_name": "Unisex Heavy Blend Hoodie | Gildan 18500"},
+        {"type": "MUG",        "type_name": "White Glossy Mug"},
+        {"type": "POSTER",     "type_name": "Enhanced Matte Paper Poster"},
         {"type": "PHONE-CASE", "type_name": "Tough Phone Case"},
     ]
     kw = keyword.lower() if keyword else ""
     products = [
-        {
-            "id": f"mock_pf_{t['type'].lower()}",
-            "type": t["type"],
-            "type_name": t["type_name"],
-            "base_price_usd": round(8.0 + i * 4.5, 2),
-            "image_url": f"https://placeholder.com/300x300?text={t['type']}",
-            "source": "mock",
-        }
+        {"id": f"mock_pf_{t['type'].lower()}", **t,
+         "base_price_usd": round(8.0 + i * 4.5, 2), "source": "mock"}
         for i, t in enumerate(templates)
         if not kw or kw in t["type"].lower() or kw in t["type_name"].lower()
     ]
     return {"products": products[:count], "total": len(products), "source": "mock"}
 
 
-# ── Tool schemas ───────────────────────────────────────────────────────────────
+# ── Tool schemas & dispatch ────────────────────────────────────────────────────
+
+_ORDER_PLATFORMS = ["dsers", "zendrop", "spocket", "autods", "printful"]
+_SEARCH_PLATFORMS = ["aliexpress", "zendrop", "spocket", "autods", "printful"]
+
 
 class SupplierTools:
     SCHEMAS = [
         {
             "name": "search_supplier_products",
             "description": (
-                "Search any configured supplier platform for dropshippable products. "
-                "Platforms: cj (CJ Dropshipping), aliexpress, zendrop, spocket, autods, printful."
+                "Search a supplier platform for dropshippable products. "
+                "Platforms: aliexpress, zendrop, spocket, autods, printful."
             ),
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "keyword": {"type": "string", "description": "Product search keyword"},
+                    "keyword": {"type": "string"},
                     "platform": {
                         "type": "string",
-                        "enum": ["cj", "aliexpress", "zendrop", "spocket", "autods", "printful"],
+                        "enum": _SEARCH_PLATFORMS,
                         "description": "Supplier platform to search",
                     },
                     "page_size": {"type": "integer", "default": 20},
                 },
-                "required": ["keyword"],
+                "required": ["keyword", "platform"],
             },
         },
         {
             "name": "get_aliexpress_product_detail",
             "description": (
-                "Fetch full product details from AliExpress by product ID — description, images, "
-                "variants, pricing, and shipping info. Use after search to evaluate a specific product."
+                "Fetch full AliExpress product details by product ID — description, images, "
+                "variants, pricing, shipping. Use before adding to catalog."
             ),
             "input_schema": {
                 "type": "object",
-                "properties": {
-                    "product_id": {"type": "string", "description": "AliExpress product ID"},
-                },
+                "properties": {"product_id": {"type": "string"}},
                 "required": ["product_id"],
             },
         },
         {
             "name": "place_supplier_order",
             "description": (
-                "Place a dropship order with a supplier to ship directly to a customer. "
-                "Use platform='dsers' for products sourced from AliExpress (supplier_platform='aliexpress'). "
-                "Use platform='cj' (default) for CJ Dropshipping products. "
-                "Check the product's supplier_platform field from get_product to decide."
+                "Place a dropship order to ship directly to a customer. "
+                "Check the product's supplier_platform field (from get_product) to choose the platform: "
+                "aliexpress → 'dsers', zendrop → 'zendrop', spocket → 'spocket', "
+                "autods → 'autods', printful → 'printful'."
             ),
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "supplier_product_id": {"type": "string", "description": "Product ID from the supplier"},
+                    "supplier_product_id": {"type": "string"},
                     "quantity": {"type": "integer"},
                     "shipping_name": {"type": "string"},
                     "shipping_address": {"type": "string"},
@@ -430,40 +412,39 @@ class SupplierTools:
                     "shipping_phone": {"type": "string"},
                     "platform": {
                         "type": "string",
-                        "enum": ["cj", "dsers"],
-                        "description": "Fulfillment platform. 'dsers' for AliExpress products, 'cj' for CJ Dropshipping. Defaults to 'cj'.",
+                        "enum": _ORDER_PLATFORMS,
+                        "description": "Fulfillment platform matching the product's source",
                     },
                     "variant_id": {
                         "type": "string",
-                        "description": "AliExpress variant/SKU ID (required when platform='dsers')",
+                        "description": "Variant/SKU ID from the supplier (required for dsers, printful)",
                     },
                 },
                 "required": ["supplier_product_id", "quantity", "shipping_name",
                              "shipping_address", "shipping_city", "shipping_country",
-                             "shipping_zip", "shipping_phone"],
+                             "shipping_zip", "shipping_phone", "platform"],
             },
         },
         {
             "name": "get_supplier_tracking",
-            "description": "Get shipping tracking information for a supplier order.",
+            "description": "Get shipping tracking for a supplier order. Pass the same platform used when placing the order.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "supplier_order_id": {"type": "string"},
+                    "platform": {
+                        "type": "string",
+                        "enum": _ORDER_PLATFORMS,
+                        "description": "Platform the order was placed through",
+                    },
                 },
-                "required": ["supplier_order_id"],
+                "required": ["supplier_order_id", "platform"],
             },
         },
     ]
 
     @staticmethod
-    async def get_aliexpress_product_detail(product_id: str) -> dict[str, Any]:
-        return await aliexpress_get_product(product_id)
-
-    @staticmethod
-    async def search_supplier_products(
-        keyword: str, platform: str = "cj", page_size: int = 20
-    ) -> dict[str, Any]:
+    async def search_supplier_products(keyword: str, platform: str, page_size: int = 20) -> dict[str, Any]:
         if platform == "aliexpress":
             return await aliexpress_search_products(keyword, page_size=page_size)
         if platform == "zendrop":
@@ -474,44 +455,48 @@ class SupplierTools:
             return await autods_search_products(keyword, page_size=page_size)
         if platform == "printful":
             return await printful_get_products(keyword, page_size=page_size)
-        return await cj_search_products(keyword, page_size=page_size)
+        return {"error": f"Unknown search platform: {platform}"}
 
     @staticmethod
-    async def place_supplier_order(**kwargs) -> dict[str, Any]:
-        platform = kwargs.get("platform", "cj")
-        if platform == "dsers":
-            return await dsers_place_order(
-                product_id=kwargs["supplier_product_id"],
-                variant_id=kwargs.get("variant_id", ""),
-                quantity=kwargs["quantity"],
-                shipping_name=kwargs["shipping_name"],
-                shipping_address=kwargs["shipping_address"],
-                shipping_city=kwargs["shipping_city"],
-                shipping_country=kwargs["shipping_country"],
-                shipping_zip=kwargs["shipping_zip"],
-                shipping_phone=kwargs["shipping_phone"],
-            )
-        return await cj_place_order(
-            product_id=kwargs["supplier_product_id"],
-            quantity=kwargs["quantity"],
-            shipping_name=kwargs["shipping_name"],
-            shipping_address=kwargs["shipping_address"],
-            shipping_city=kwargs["shipping_city"],
-            shipping_country=kwargs["shipping_country"],
-            shipping_zip=kwargs["shipping_zip"],
-            shipping_phone=kwargs["shipping_phone"],
+    async def get_aliexpress_product_detail(product_id: str) -> dict[str, Any]:
+        return await aliexpress_get_product(product_id)
+
+    @staticmethod
+    async def place_supplier_order(**kw) -> dict[str, Any]:
+        p = kw["platform"]
+        args = dict(
+            product_id=kw["supplier_product_id"],
+            variant_id=kw.get("variant_id", ""),
+            quantity=kw["quantity"],
+            shipping_name=kw["shipping_name"],
+            shipping_address=kw["shipping_address"],
+            shipping_city=kw["shipping_city"],
+            shipping_country=kw["shipping_country"],
+            shipping_zip=kw["shipping_zip"],
+            shipping_phone=kw["shipping_phone"],
         )
+        if p == "dsers":     return await dsers_place_order(**args)
+        if p == "zendrop":   return await zendrop_place_order(**args)
+        if p == "spocket":   return await spocket_place_order(**args)
+        if p == "autods":    return await autods_place_order(**args)
+        if p == "printful":  return await printful_place_order(**args)
+        return {"error": f"Unknown order platform: {p}"}
 
     @staticmethod
-    async def get_supplier_tracking(supplier_order_id: str) -> dict[str, Any]:
-        return await get_tracking_info(supplier_order_id)
+    async def get_supplier_tracking(supplier_order_id: str, platform: str) -> dict[str, Any]:
+        if platform == "dsers":    return await dsers_get_order(supplier_order_id)
+        if platform == "zendrop":  return await zendrop_get_order(supplier_order_id)
+        if platform == "spocket":  return await spocket_get_order(supplier_order_id)
+        if platform == "autods":   return await autods_get_order(supplier_order_id)
+        if platform == "printful": return await printful_get_order(supplier_order_id)
+        return {"error": f"Unknown tracking platform: {platform}"}
 
     MAP: dict  # populated below
 
 
 SupplierTools.MAP = {
-    "search_supplier_products": SupplierTools.search_supplier_products,
-    "get_aliexpress_product_detail": SupplierTools.get_aliexpress_product_detail,
-    "place_supplier_order": SupplierTools.place_supplier_order,
-    "get_supplier_tracking": SupplierTools.get_supplier_tracking,
+    "search_supplier_products":      SupplierTools.search_supplier_products,
+    "get_aliexpress_product_detail":  SupplierTools.get_aliexpress_product_detail,
+    "place_supplier_order":          SupplierTools.place_supplier_order,
+    "get_supplier_tracking":         SupplierTools.get_supplier_tracking,
 }

@@ -18,8 +18,6 @@ class Settings(BaseSettings):
     # Supplier APIs – existing
     aliexpress_app_key: str = ""
     aliexpress_app_secret: str = ""
-    cjdropshipping_api_key: str = ""
-    cjdropshipping_email: str = ""
 
     # Supplier APIs – new platforms
     dsers_api_key: str = ""

@@ -52,21 +52,6 @@ _SUPPLIER_INFO: dict[str, dict] = {
         "strengths": "Massive catalog, lowest prices, no subscription",
         "weaknesses": "Long shipping from China, quality varies",
     },
-    "cjdropshipping": {
-        "name": "CJ Dropshipping",
-        "signup_url": "https://cjdropshipping.com",
-        "env_keys": ["CJDROPSHIPPING_API_KEY", "CJDROPSHIPPING_EMAIL"],
-        "setup_steps": [
-            "1. Sign up at https://cjdropshipping.com.",
-            "2. Go to 'My CJ' > 'API Access' and generate your API key.",
-            "3. Set CJDROPSHIPPING_API_KEY (your API key / password) and CJDROPSHIPPING_EMAIL in .env.",
-        ],
-        "pricing_model": "No monthly fee. Pay per product.",
-        "product_types": "Electronics, home goods, fashion, tools",
-        "avg_shipping_days": "5-20 days (US warehouse available)",
-        "strengths": "US warehouse option, product sourcing service, good API",
-        "weaknesses": "Smaller catalog than AliExpress",
-    },
     "zendrop": {
         "name": "Zendrop",
         "signup_url": "https://app.zendrop.com/register",
@@ -138,13 +123,12 @@ _SUPPLIER_INFO: dict[str, dict] = {
 
 def _is_configured(platform: str) -> bool:
     return {
-        "dsers":          bool(settings.dsers_api_key),
-        "aliexpress":     bool(settings.aliexpress_app_key),
-        "cjdropshipping": bool(settings.cjdropshipping_api_key and settings.cjdropshipping_email),
-        "zendrop":        bool(settings.zendrop_api_key),
-        "spocket":        bool(settings.spocket_api_key),
-        "autods":         bool(settings.autods_api_key),
-        "printful":       bool(settings.printful_api_key),
+        "dsers":    bool(settings.dsers_api_key),
+        "aliexpress": bool(settings.aliexpress_app_key),
+        "zendrop":  bool(settings.zendrop_api_key),
+        "spocket":  bool(settings.spocket_api_key),
+        "autods":   bool(settings.autods_api_key),
+        "printful": bool(settings.printful_api_key),
     }.get(platform, False)
 
 
@@ -207,13 +191,6 @@ async def _ping(platform: str) -> dict[str, Any]:
                     "tracking_id": "dropship",
                 },
             )
-        elif platform == "cjdropshipping":
-            r = await client.post(
-                "https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken",
-                json={"email": settings.cjdropshipping_email, "password": settings.cjdropshipping_api_key},
-            )
-            token = r.json().get("data", {}).get("accessToken")
-            return {"platform": platform, "status": "connected" if token else "auth_failed", "http_status": r.status_code}
         elif platform == "zendrop":
             r = await client.get(
                 "https://api.zendrop.com/api/products",
@@ -371,7 +348,7 @@ class SupplierSourcingTools:
                 "properties": {
                     "platform": {
                         "type": "string",
-                        "enum": ["dsers", "aliexpress", "cjdropshipping", "zendrop", "spocket", "autods", "printful"],
+                        "enum": ["dsers", "aliexpress", "zendrop", "spocket", "autods", "printful"],
                     }
                 },
                 "required": ["platform"],
@@ -389,7 +366,7 @@ class SupplierSourcingTools:
                     "name": {"type": "string", "description": "Human-readable name (e.g. 'CJ Dropshipping')"},
                     "platform": {
                         "type": "string",
-                        "description": "Platform slug: aliexpress | cjdropshipping | zendrop | spocket | autods | printful",
+                        "description": "Platform slug: dsers | aliexpress | zendrop | spocket | autods | printful",
                     },
                     "notes": {"type": "string", "description": "Notes about this supplier"},
                     "processing_days": {"type": "integer", "description": "Typical order processing time in days"},
@@ -415,7 +392,7 @@ class SupplierSourcingTools:
                 "properties": {
                     "platform": {
                         "type": "string",
-                        "enum": ["dsers", "aliexpress", "cjdropshipping", "zendrop", "spocket", "autods", "printful"],
+                        "enum": ["dsers", "aliexpress", "zendrop", "spocket", "autods", "printful"],
                     }
                 },
                 "required": ["platform"],

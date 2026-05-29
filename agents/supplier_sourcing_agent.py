@@ -55,14 +55,14 @@ At the end of every run, produce a structured summary:
 - Which unconfigured suppliers to prioritize and why (based on catalog gaps).
 
 ## Platform Notes
-| Platform      | Model           | Shipping  | Best For |
-|---------------|-----------------|-----------|----------|
-| CJ Dropshipping | No fee        | 5-20 days | General merch, electronics |
-| AliExpress    | No fee          | 7-30 days | Huge catalog, low prices |
-| Zendrop       | $49-79/mo       | 3-7 days  | Fast US shipping, supplements |
-| Spocket       | $49-99/mo       | 2-5 days  | EU/US branded goods, fashion |
-| AutoDS        | $39-99/mo       | Varies    | Multi-source (Amazon/Walmart/eBay) |
-| Printful      | No fee          | 4-10 days | Custom branded, differentiation |
+| Platform   | Model       | Shipping  | Orders Via | Best For |
+|------------|-------------|-----------|------------|----------|
+| AliExpress | No fee      | 7-30 days | DSers      | Huge catalog, low prices |
+| DSers      | $20+/mo     | 7-30 days | Direct     | AliExpress order automation |
+| Zendrop    | $49-79/mo   | 3-7 days  | Direct     | Fast US shipping, supplements |
+| Spocket    | $49-99/mo   | 2-5 days  | Direct     | EU/US branded goods, fashion |
+| AutoDS     | $39-99/mo   | Varies    | Direct     | Multi-source (Amazon/Walmart/eBay) |
+| Printful   | No fee      | 4-10 days | Direct     | Custom branded, print-on-demand |
 
 Always be thorough and provide actionable output. The operator reads your report to decide which
 new supplier accounts to open next.
