@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     ordering_agent_model: str = "claude-sonnet-4-6"
     website_agent_model: str = "claude-sonnet-4-6"
     manager_agent_model: str = "claude-opus-4-8"
+    marketing_agent_model: str = "claude-opus-4-8"
 
     # Agent schedules (seconds between runs)
     product_agent_interval: int = 3600       # 1 hour
@@ -48,6 +49,7 @@ class Settings(BaseSettings):
     ordering_agent_interval: int = 300       # 5 minutes
     website_agent_interval: int = 7200       # 2 hours
     manager_agent_interval: int = 14400      # 4 hours
+    marketing_agent_interval: int = 10800    # 3 hours
 
     class Config:
         env_file = ".env"

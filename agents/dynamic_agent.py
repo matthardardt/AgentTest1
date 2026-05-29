@@ -8,6 +8,7 @@ from tools.analytics_tools import AnalyticsTools
 from tools.search_tools import SearchTools
 from tools.supplier_tools import SupplierTools
 from tools.notification_tools import NotificationTools
+from tools.marketing_tools import MarketingTools
 
 # All available tool schemas + callables, keyed by tool name
 _ALL_SCHEMAS: dict[str, dict] = {
@@ -16,6 +17,7 @@ _ALL_SCHEMAS: dict[str, dict] = {
         + SearchTools.SCHEMAS
         + SupplierTools.SCHEMAS
         + NotificationTools.SCHEMAS
+        + MarketingTools.SCHEMAS
     )
 }
 
@@ -28,6 +30,7 @@ _ALL_MAP: dict = {
         "get_supplier_tracking": SupplierTools.get_supplier_tracking,
     },
     **NotificationTools.MAP,
+    **MarketingTools.MAP,
 }
 
 

@@ -205,6 +205,49 @@ class BusinessMetric(Base):
     recorded_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(String, primary_key=True, default=_gen_id)
+    code = Column(String, nullable=False, unique=True)
+    description = Column(String)
+    discount_type = Column(String, default="percent")  # percent | fixed
+    discount_value = Column(Float, nullable=False)
+    min_order_value = Column(Float, default=0.0)
+    max_uses = Column(Integer)            # None = unlimited
+    current_uses = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    valid_from = Column(DateTime, default=datetime.utcnow)
+    valid_until = Column(DateTime)
+    created_by = Column(String, default="marketing_agent")
+    campaign_name = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MarketingCampaign(Base):
+    __tablename__ = "marketing_campaigns"
+
+    id = Column(String, primary_key=True, default=_gen_id)
+    name = Column(String, nullable=False)
+    campaign_type = Column(String)        # social | email | seo | press_release | influencer | affiliate
+    platform = Column(String)             # twitter | instagram | facebook | tiktok | pinterest | email | blog
+    content = Column(Text)                # Generated content / copy
+    subject_line = Column(String)         # For email campaigns
+    target_audience = Column(String)
+    product_ids = Column(Text)            # JSON array of featured product IDs
+    promo_code = Column(String)
+    status = Column(String, default="draft")  # draft | scheduled | published | archived
+    scheduled_for = Column(DateTime)
+    published_at = Column(DateTime)
+    impressions = Column(Integer, default=0)
+    clicks = Column(Integer, default=0)
+    conversions = Column(Integer, default=0)
+    revenue_attributed = Column(Float, default=0.0)
+    notes = Column(Text)
+    created_by = Column(String, default="marketing_agent")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def init_db() -> None:
