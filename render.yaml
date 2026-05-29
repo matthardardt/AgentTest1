@@ -1,10 +1,15 @@
+# Single combined service: the FastAPI store and the agent orchestrator run in
+# one process (python orchestrator.py --store), sharing one SQLite DB on the
+# mounted disk. Render allows one service per disk, so this avoids the
+# two-services-one-disk conflict. Use the Starter plan (not Free) so the service
+# stays always-on and the agent loops aren't paused when the store is idle.
 services:
   - type: web
-    name: dropshop-store
+    name: vendos-deals
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn store.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python orchestrator.py --store
     healthCheckPath: /health
     envVars:
       - key: ANTHROPIC_API_KEY
@@ -19,6 +24,8 @@ services:
         sync: false
       - key: CJDROPSHIPPING_EMAIL
         sync: false
+      - key: SERP_API_KEY
+        sync: false
       - key: ADMIN_API_KEY
         sync: false
       - key: STORE_URL
@@ -27,32 +34,6 @@ services:
         value: "false"
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL
-        value: sqlite+aiosqlite:////var/data/dropshipping.db
-    disk:
-      name: dropdata
-      mountPath: /var/data
-      sizeGB: 1
-
-  - type: worker
-    name: dropshop-agents
-    runtime: python
-    plan: starter
-    buildCommand: pip install -r requirements.txt
-    startCommand: python orchestrator.py
-    envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: CJDROPSHIPPING_API_KEY
-        sync: false
-      - key: CJDROPSHIPPING_EMAIL
-        sync: false
-      - key: SERP_API_KEY
-        sync: false
-      - key: ALLOW_MOCK_SUPPLIERS
-        value: "false"
-      - key: STORE_URL
-        value: https://vendosdeals.com
       - key: DATABASE_URL
         value: sqlite+aiosqlite:////var/data/dropshipping.db
     disk:

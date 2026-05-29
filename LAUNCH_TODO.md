@@ -22,7 +22,7 @@ Last updated: 2026-05-29
 | Stripe keys + webhook configured | ⬜ You |
 | Supplier (CJ) account + funds | ⬜ You |
 | Email (SMTP/Resend) | ⬜ You |
-| Agents actually running in prod | ⬜ Deploy decision needed (see §6) |
+| Agents actually running in prod | ⬜ Set Start Command + Starter plan (see §6) |
 
 ---
 
@@ -84,21 +84,27 @@ Last updated: 2026-05-29
 - [ ] Set `ADMIN_API_KEY` to a separate random string (don't reuse `SECRET_KEY`).
 - [ ] Confirm `ANTHROPIC_API_KEY` is set (powers every agent).
 
-### 6. ⚠️ Deploy-topology decision (needed for the agents to run)
-Right now only the **store** is live; the **agents aren't running in production**, and
-the current `render.yaml` can't deploy as-is because the web service and the worker both
-try to mount the **same 1 GB disk** — Render only allows one service per disk. Pick one:
+### 6. Deploy topology — ✅ chosen: single combined service
+Decision made: run the store **and** the agents in one process. The code + configs are
+wired for this (`render.yaml`, `Procfile`, and `orchestrator.py --store` now honours
+Render's `$PORT`). You just need to point your existing Render service at it:
 
-- **Option A (simplest, recommended to start):** run store **and** agents in the one
-  existing service. Change the Render **Start Command** to
-  `python orchestrator.py --store`. One process, one disk, shared SQLite. Note: on the
-  **Free** plan the service sleeps when idle, which pauses the agents — upgrade to
-  **Starter** ($7/mo) for always-on agents.
-- **Option B (scales better):** add a **Render PostgreSQL** instance, point both services
-  at it via `DATABASE_URL`, and drop the shared disk. Lets the store and worker run
-  separately. (Requires adding `asyncpg` to `requirements.txt`.)
+- [ ] **Render → Settings → Build & Deploy → Start Command:** set to
+      `python orchestrator.py --store`
+- [ ] **Render → Settings → Instance Type:** upgrade from **Free** to **Starter** (~$7/mo)
+      so the service is always-on (the Free plan sleeps when idle, which would pause the
+      agent loops).
+- [ ] Confirm the **branch** Render deploys is your active one (currently it's set to
+      `claude/affectionate-albattani-S7jSa` — point it at the branch with this work).
+- [ ] Make sure a **persistent disk** is attached at `/var/data` (the blueprint defines a
+      1 GB `dropdata` disk) so the SQLite DB survives restarts.
+- [ ] Trigger a **Manual Deploy**. On boot it runs the store on `$PORT` and starts all
+      agent loops (incl. the new Business Analyst) in the same process.
 
-→ Tell me which you want and I'll wire it up.
+> Heads-up: the agents call the Anthropic API continuously on their schedules, so this
+> will consume API credits once `ANTHROPIC_API_KEY` is set and the service is always-on.
+> If you ever outgrow one instance, switch to Render PostgreSQL + a separate worker — ask
+> me and I'll wire it up.
 
 ### 7. Seed & verify
 - [ ] Seed the catalog once: visit `https://vendosdeals.com/api/admin/seed?key=YOUR_SECRET_KEY`

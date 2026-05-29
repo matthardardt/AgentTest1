@@ -1,2 +1,2 @@
-web: uvicorn store.main:app --host 0.0.0.0 --port $PORT
-worker: python orchestrator.py
+# Single combined dyno: store + agents in one process (shares one SQLite DB).
+web: python orchestrator.py --store

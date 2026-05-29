@@ -68,10 +68,16 @@ async def run_agent_loop(agent, interval_seconds: int, name: str) -> None:
             pass  # normal – interval elapsed
 
 
-async def run_store(host: str = "0.0.0.0", port: int = 8000) -> None:
+async def run_store(host: str = "0.0.0.0", port: int | None = None) -> None:
+    import os
     import uvicorn
+    # Honour the platform-provided $PORT (Render/Railway/Heroku); default to 8000.
+    port = port or int(os.environ.get("PORT", "8000"))
     config = uvicorn.Config("store.main:app", host=host, port=port, log_level="info")
     server = uvicorn.Server(config)
+    # The orchestrator already owns SIGINT/SIGTERM; don't let uvicorn install its
+    # own handlers on top (it's running inside our event loop, not standalone).
+    server.install_signal_handlers = lambda: None
     await server.serve()
 
 
@@ -157,7 +163,9 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
     tasks.append(asyncio.create_task(_dynamic_agent_watcher()))
 
     if with_store:
-        console.print("[bold]Starting store at http://0.0.0.0:8000[/bold]")
+        import os
+        _port = os.environ.get("PORT", "8000")
+        console.print(f"[bold]Starting store at http://0.0.0.0:{_port}[/bold]")
         tasks.append(asyncio.create_task(run_store()))
 
     await asyncio.gather(*tasks, return_exceptions=True)
