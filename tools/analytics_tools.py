@@ -33,11 +33,18 @@ async def get_all_products(status: str | None = None) -> dict[str, Any]:
 
 async def get_product(product_id: str) -> dict[str, Any]:
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Product).where(Product.id == product_id))
-        p = result.scalar_one_or_none()
-        if not p:
+        result = await db.execute(
+            select(Product, Supplier.platform.label("supplier_platform"))
+            .outerjoin(Supplier, Product.supplier_id == Supplier.id)
+            .where(Product.id == product_id)
+        )
+        row = result.one_or_none()
+        if not row:
             return {"error": f"Product {product_id} not found"}
-        return _product_to_dict(p)
+        p, supplier_platform = row
+        d = _product_to_dict(p)
+        d["supplier_platform"] = supplier_platform
+        return d
 
 
 async def add_product(

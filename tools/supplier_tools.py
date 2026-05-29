@@ -144,6 +144,68 @@ async def get_tracking_info(supplier_order_id: str) -> dict[str, Any]:
         return r.json()
 
 
+# ── DSers adapter (AliExpress order automation) ───────────────────────────────
+# Official AliExpress dropshipping partner. Handles order placement & tracking.
+# Docs: https://www.dsers.com/partner-api/
+
+async def dsers_place_order(
+    product_id: str,
+    variant_id: str,
+    quantity: int,
+    shipping_name: str,
+    shipping_address: str,
+    shipping_city: str,
+    shipping_country: str,
+    shipping_zip: str,
+    shipping_phone: str,
+) -> dict[str, Any]:
+    """Place an AliExpress order via DSers."""
+    if not settings.dsers_api_key:
+        return _mock_place_order(product_id, quantity, shipping_name)
+
+    headers = {"api-token": settings.dsers_api_key, "Content-Type": "application/json"}
+    payload = {
+        "products": [
+            {
+                "product_id": product_id,
+                "variant_id": variant_id,
+                "quantity": quantity,
+            }
+        ],
+        "shipping_address": {
+            "name": shipping_name,
+            "address1": shipping_address,
+            "city": shipping_city,
+            "country_code": shipping_country,
+            "zip": shipping_zip,
+            "phone": shipping_phone,
+        },
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(
+            "https://openapi.dsers.com/open/v1/orders/create",
+            headers=headers,
+            json=payload,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+async def dsers_get_order(dsers_order_id: str) -> dict[str, Any]:
+    """Get order status and tracking from DSers."""
+    if not settings.dsers_api_key:
+        return _mock_tracking(dsers_order_id)
+
+    headers = {"api-token": settings.dsers_api_key}
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(
+            f"https://openapi.dsers.com/open/v1/orders/{dsers_order_id}",
+            headers=headers,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
 # ── Zendrop adapter ───────────────────────────────────────────────────────────
 
 async def zendrop_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
@@ -349,11 +411,16 @@ class SupplierTools:
         },
         {
             "name": "place_supplier_order",
-            "description": "Place a dropship order with a supplier to ship directly to a customer.",
+            "description": (
+                "Place a dropship order with a supplier to ship directly to a customer. "
+                "Use platform='dsers' for products sourced from AliExpress (supplier_platform='aliexpress'). "
+                "Use platform='cj' (default) for CJ Dropshipping products. "
+                "Check the product's supplier_platform field from get_product to decide."
+            ),
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "supplier_product_id": {"type": "string"},
+                    "supplier_product_id": {"type": "string", "description": "Product ID from the supplier"},
                     "quantity": {"type": "integer"},
                     "shipping_name": {"type": "string"},
                     "shipping_address": {"type": "string"},
@@ -361,6 +428,15 @@ class SupplierTools:
                     "shipping_country": {"type": "string"},
                     "shipping_zip": {"type": "string"},
                     "shipping_phone": {"type": "string"},
+                    "platform": {
+                        "type": "string",
+                        "enum": ["cj", "dsers"],
+                        "description": "Fulfillment platform. 'dsers' for AliExpress products, 'cj' for CJ Dropshipping. Defaults to 'cj'.",
+                    },
+                    "variant_id": {
+                        "type": "string",
+                        "description": "AliExpress variant/SKU ID (required when platform='dsers')",
+                    },
                 },
                 "required": ["supplier_product_id", "quantity", "shipping_name",
                              "shipping_address", "shipping_city", "shipping_country",
@@ -402,16 +478,29 @@ class SupplierTools:
 
     @staticmethod
     async def place_supplier_order(**kwargs) -> dict[str, Any]:
-        return await cj_place_order(**{
-            "product_id": kwargs["supplier_product_id"],
-            "quantity": kwargs["quantity"],
-            "shipping_name": kwargs["shipping_name"],
-            "shipping_address": kwargs["shipping_address"],
-            "shipping_city": kwargs["shipping_city"],
-            "shipping_country": kwargs["shipping_country"],
-            "shipping_zip": kwargs["shipping_zip"],
-            "shipping_phone": kwargs["shipping_phone"],
-        })
+        platform = kwargs.get("platform", "cj")
+        if platform == "dsers":
+            return await dsers_place_order(
+                product_id=kwargs["supplier_product_id"],
+                variant_id=kwargs.get("variant_id", ""),
+                quantity=kwargs["quantity"],
+                shipping_name=kwargs["shipping_name"],
+                shipping_address=kwargs["shipping_address"],
+                shipping_city=kwargs["shipping_city"],
+                shipping_country=kwargs["shipping_country"],
+                shipping_zip=kwargs["shipping_zip"],
+                shipping_phone=kwargs["shipping_phone"],
+            )
+        return await cj_place_order(
+            product_id=kwargs["supplier_product_id"],
+            quantity=kwargs["quantity"],
+            shipping_name=kwargs["shipping_name"],
+            shipping_address=kwargs["shipping_address"],
+            shipping_city=kwargs["shipping_city"],
+            shipping_country=kwargs["shipping_country"],
+            shipping_zip=kwargs["shipping_zip"],
+            shipping_phone=kwargs["shipping_phone"],
+        )
 
     @staticmethod
     async def get_supplier_tracking(supplier_order_id: str) -> dict[str, Any]:

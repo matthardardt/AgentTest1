@@ -19,6 +19,23 @@ settings = get_settings()
 # ── Static onboarding reference ────────────────────────────────────────────────
 
 _SUPPLIER_INFO: dict[str, dict] = {
+    "dsers": {
+        "name": "DSers",
+        "signup_url": "https://www.dsers.com",
+        "env_keys": ["DSERS_API_KEY"],
+        "setup_steps": [
+            "1. Sign up at https://www.dsers.com.",
+            "2. Upgrade to Advanced plan (~$20/mo) or higher for API access.",
+            "3. Go to Settings > API and generate your Partner API key.",
+            "4. Set DSERS_API_KEY in your .env file.",
+            "5. In DSers, connect your AliExpress account (Settings > Bind Account).",
+        ],
+        "pricing_model": "$20-49/month subscription",
+        "product_types": "All AliExpress products — routes orders through DSers to AliExpress",
+        "avg_shipping_days": "7-30 days (same as AliExpress)",
+        "strengths": "Official AliExpress partner, automates AliExpress order placement, tracking sync",
+        "weaknesses": "Monthly fee, still relies on AliExpress shipping times",
+    },
     "aliexpress": {
         "name": "AliExpress",
         "signup_url": "https://portals.aliexpress.com/",
@@ -121,12 +138,13 @@ _SUPPLIER_INFO: dict[str, dict] = {
 
 def _is_configured(platform: str) -> bool:
     return {
-        "aliexpress":    bool(settings.aliexpress_app_key),
+        "dsers":          bool(settings.dsers_api_key),
+        "aliexpress":     bool(settings.aliexpress_app_key),
         "cjdropshipping": bool(settings.cjdropshipping_api_key and settings.cjdropshipping_email),
-        "zendrop":       bool(settings.zendrop_api_key),
-        "spocket":       bool(settings.spocket_api_key),
-        "autods":        bool(settings.autods_api_key),
-        "printful":      bool(settings.printful_api_key),
+        "zendrop":        bool(settings.zendrop_api_key),
+        "spocket":        bool(settings.spocket_api_key),
+        "autods":         bool(settings.autods_api_key),
+        "printful":       bool(settings.printful_api_key),
     }.get(platform, False)
 
 
@@ -169,7 +187,13 @@ async def test_supplier_connection(platform: str) -> dict[str, Any]:
 
 async def _ping(platform: str) -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=10) as client:
-        if platform == "aliexpress":
+        if platform == "dsers":
+            r = await client.get(
+                "https://openapi.dsers.com/open/v1/orders",
+                headers={"api-token": settings.dsers_api_key},
+                params={"page": 1, "page_size": 1},
+            )
+        elif platform == "aliexpress":
             r = await client.get(
                 "https://api.aliexpress.com/router/rest",
                 params={
@@ -347,7 +371,7 @@ class SupplierSourcingTools:
                 "properties": {
                     "platform": {
                         "type": "string",
-                        "enum": ["aliexpress", "cjdropshipping", "zendrop", "spocket", "autods", "printful"],
+                        "enum": ["dsers", "aliexpress", "cjdropshipping", "zendrop", "spocket", "autods", "printful"],
                     }
                 },
                 "required": ["platform"],
@@ -391,7 +415,7 @@ class SupplierSourcingTools:
                 "properties": {
                     "platform": {
                         "type": "string",
-                        "enum": ["aliexpress", "cjdropshipping", "zendrop", "spocket", "autods", "printful"],
+                        "enum": ["dsers", "aliexpress", "cjdropshipping", "zendrop", "spocket", "autods", "printful"],
                     }
                 },
                 "required": ["platform"],

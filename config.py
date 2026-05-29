@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     cjdropshipping_email: str = ""
 
     # Supplier APIs – new platforms
+    dsers_api_key: str = ""
     zendrop_api_key: str = ""
     spocket_api_key: str = ""
     autods_api_key: str = ""

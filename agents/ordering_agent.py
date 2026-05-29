@@ -16,9 +16,10 @@ Your responsibilities:
 1. Monitor for newly PAID orders that need processing
 2. For each paid order:
    a. Fetch the full order details including items and shipping address
-   b. For each item, place a dropship order with the supplier (ship directly to customer)
-   c. Update order status to "ordered_from_supplier"
-   d. Send order confirmation email to the customer
+   b. For each item, call get_product to get product details including supplier_platform
+   c. Place a dropship order with the correct supplier platform (see routing rules below)
+   d. Update order status to "ordered_from_supplier"
+   e. Send order confirmation email to the customer
 3. Monitor orders in "ordered_from_supplier" status:
    a. Check tracking information from the supplier
    b. When tracking is available, update the order with tracking info
@@ -28,6 +29,14 @@ Your responsibilities:
    - If order is still PAID (not yet sent to supplier), cancel and refund
    - If already shipped, advise customer to return
 6. Handle refund requests for delivered orders with valid complaints
+
+## Supplier Routing Rules
+Always call get_product first to check the product's supplier_platform field, then:
+- supplier_platform = "aliexpress" → use place_supplier_order with platform="dsers"
+- supplier_platform = "cjdropshipping" or null → use place_supplier_order with platform="cj" (default)
+
+For DSers (AliExpress) orders, include variant_id if available from the supplier_product_id field.
+DSers handles the actual AliExpress order placement — never attempt to order directly from AliExpress.
 
 Process ALL pending work in each session. Be thorough.
 Always use the exact shipping address from the order — never modify it.
@@ -62,6 +71,7 @@ class OrderingAgent(BaseAgent):
             **AnalyticsTools.MAP,
             **{
                 "search_supplier_products": SupplierTools.search_supplier_products,
+                "get_aliexpress_product_detail": SupplierTools.get_aliexpress_product_detail,
                 "place_supplier_order": SupplierTools.place_supplier_order,
                 "get_supplier_tracking": SupplierTools.get_supplier_tracking,
             },
