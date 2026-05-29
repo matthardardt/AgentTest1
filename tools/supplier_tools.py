@@ -1,7 +1,12 @@
 """
 Supplier integration tools.
-Implements AliExpress and CJ Dropshipping adapters.
-Falls back to mock data when API keys are not configured.
+Implements the AliExpress adapter for product sourcing.
+
+AliExpress does not expose an automated dropship order-placement API for most
+sellers, so order placement and tracking run in MANUAL mode: paid orders are
+flagged for the operator to fulfil by hand on AliExpress, then the tracking
+number is recorded back into the order. When AliExpress API keys are not
+configured, product search falls back to mock data so the agents still run.
 """
 
 import json
@@ -55,93 +60,39 @@ async def aliexpress_get_product(product_id: str) -> dict[str, Any]:
         return r.json()
 
 
-# ── CJ Dropshipping adapter ────────────────────────────────────────────────────
+# ── Manual fulfilment ──────────────────────────────────────────────────────────
+# AliExpress has no automated order API here, so orders are queued for the
+# operator to place by hand. These return a structured "manual" result the
+# ordering agent records on the order so a human knows to act.
 
-async def cj_get_token() -> str | None:
-    """Obtain CJ Dropshipping access token."""
-    if not settings.cjdropshipping_api_key:
-        return None
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.post(
-            "https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken",
-            json={"email": settings.cjdropshipping_email, "password": settings.cjdropshipping_api_key},
-        )
-        r.raise_for_status()
-        return r.json().get("data", {}).get("accessToken")
-
-
-async def cj_search_products(keyword: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-    """Search CJ Dropshipping for products."""
-    token = await cj_get_token()
-    if not token:
-        return _mock_product_search(keyword, page_size)
-
-    headers = {"CJ-Access-Token": token}
-    params = {"productNameEn": keyword, "pageNum": page, "pageSize": page_size}
-    async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get(
-            "https://developers.cjdropshipping.com/api2.0/v1/product/list",
-            headers=headers,
-            params=params,
-        )
-        r.raise_for_status()
-        return r.json()
-
-
-async def cj_place_order(
-    product_id: str,
-    quantity: int,
-    shipping_name: str,
-    shipping_address: str,
-    shipping_city: str,
-    shipping_country: str,
-    shipping_zip: str,
-    shipping_phone: str,
-) -> dict[str, Any]:
-    """Place a dropship order via CJ Dropshipping."""
-    token = await cj_get_token()
-    if not token:
-        return _mock_place_order(product_id, quantity, shipping_name)
-
-    headers = {"CJ-Access-Token": token}
-    payload = {
-        "orderNumber": str(uuid.uuid4()),
-        "products": [{"vid": product_id, "quantity": quantity}],
-        "shippingInfo": {
-            "consigneeID": str(uuid.uuid4()),
-            "consigneeName": shipping_name,
-            "address": shipping_address,
-            "city": shipping_city,
-            "country": shipping_country,
-            "zipCode": shipping_zip,
-            "phone": shipping_phone,
-        },
+def _manual_place_order(product_id: str, quantity: int, name: str) -> dict[str, Any]:
+    return {
+        "success": True,
+        "fulfilment_mode": "manual",
+        "supplier_order_id": f"MANUAL-{uuid.uuid4().hex[:8].upper()}",
+        "product_id": product_id,
+        "quantity": quantity,
+        "recipient": name,
+        "action_required": (
+            "Place this order manually on AliExpress and ship to the customer "
+            "address, then record the AliExpress tracking number on the order."
+        ),
+        "estimated_shipping_days": 12,
+        "source": "manual",
     }
-    async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.post(
-            "https://developers.cjdropshipping.com/api2.0/v1/shopping/order/createOrderV2",
-            headers=headers,
-            json=payload,
-        )
-        r.raise_for_status()
-        return r.json()
 
 
-async def get_tracking_info(supplier_order_id: str) -> dict[str, Any]:
-    """Get tracking information for a supplier order."""
-    token = await cj_get_token()
-    if not token:
-        return _mock_tracking(supplier_order_id)
-
-    headers = {"CJ-Access-Token": token}
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            "https://developers.cjdropshipping.com/api2.0/v1/shopping/order/getOrderDetail",
-            headers=headers,
-            params={"orderID": supplier_order_id},
-        )
-        r.raise_for_status()
-        return r.json()
+def _manual_tracking(supplier_order_id: str) -> dict[str, Any]:
+    return {
+        "supplier_order_id": supplier_order_id,
+        "fulfilment_mode": "manual",
+        "status": "awaiting_manual_tracking",
+        "note": (
+            "Tracking is added manually after the AliExpress order ships. "
+            "Update the order with the AliExpress tracking number when available."
+        ),
+        "source": "manual",
+    }
 
 
 # ── Mock data for development / no API keys ────────────────────────────────────
@@ -175,41 +126,17 @@ def _mock_product_detail(product_id: str) -> dict[str, Any]:
     }
 
 
-def _mock_place_order(product_id: str, quantity: int, name: str) -> dict[str, Any]:
-    return {
-        "success": True,
-        "supplier_order_id": f"MOCK-{uuid.uuid4().hex[:8].upper()}",
-        "product_id": product_id,
-        "quantity": quantity,
-        "recipient": name,
-        "estimated_shipping_days": 12,
-        "source": "mock",
-    }
-
-
-def _mock_tracking(supplier_order_id: str) -> dict[str, Any]:
-    return {
-        "supplier_order_id": supplier_order_id,
-        "status": "in_transit",
-        "tracking_number": f"MOCK{supplier_order_id[-6:].upper()}",
-        "tracking_url": "https://track.example.com",
-        "estimated_delivery": "7-14 days",
-        "source": "mock",
-    }
-
-
 # ── Tool schemas ───────────────────────────────────────────────────────────────
 
 class SupplierTools:
     SCHEMAS = [
         {
             "name": "search_supplier_products",
-            "description": "Search AliExpress or CJ Dropshipping for products to stock.",
+            "description": "Search AliExpress for products to stock.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "keyword": {"type": "string", "description": "Product search keyword"},
-                    "platform": {"type": "string", "enum": ["aliexpress", "cj"], "description": "Supplier platform"},
                     "page_size": {"type": "integer", "default": 20},
                 },
                 "required": ["keyword"],
@@ -217,7 +144,11 @@ class SupplierTools:
         },
         {
             "name": "place_supplier_order",
-            "description": "Place a dropship order with a supplier to ship directly to a customer.",
+            "description": (
+                "Queue a dropship order for fulfilment. AliExpress orders are placed "
+                "manually by the operator, so this returns a manual-fulfilment ticket "
+                "to record on the order."
+            ),
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -249,29 +180,20 @@ class SupplierTools:
     ]
 
     @staticmethod
-    async def search_supplier_products(
-        keyword: str, platform: str = "cj", page_size: int = 20
-    ) -> dict[str, Any]:
-        if platform == "aliexpress":
-            return await aliexpress_search_products(keyword, page_size=page_size)
-        return await cj_search_products(keyword, page_size=page_size)
+    async def search_supplier_products(keyword: str, page_size: int = 20) -> dict[str, Any]:
+        return await aliexpress_search_products(keyword, page_size=page_size)
 
     @staticmethod
     async def place_supplier_order(**kwargs) -> dict[str, Any]:
-        return await cj_place_order(**{
-            "product_id": kwargs["supplier_product_id"],
-            "quantity": kwargs["quantity"],
-            "shipping_name": kwargs["shipping_name"],
-            "shipping_address": kwargs["shipping_address"],
-            "shipping_city": kwargs["shipping_city"],
-            "shipping_country": kwargs["shipping_country"],
-            "shipping_zip": kwargs["shipping_zip"],
-            "shipping_phone": kwargs["shipping_phone"],
-        })
+        return _manual_place_order(
+            product_id=kwargs["supplier_product_id"],
+            quantity=kwargs["quantity"],
+            name=kwargs["shipping_name"],
+        )
 
     @staticmethod
     async def get_supplier_tracking(supplier_order_id: str) -> dict[str, Any]:
-        return await get_tracking_info(supplier_order_id)
+        return _manual_tracking(supplier_order_id)
 
     MAP: dict  # populated below
 

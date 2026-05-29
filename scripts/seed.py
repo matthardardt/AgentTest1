@@ -94,8 +94,8 @@ async def seed():
     async with AsyncSessionLocal() as db:
         # Default supplier
         supplier = Supplier(
-            name="CJ Dropshipping",
-            platform="cjdropshipping",
+            name="AliExpress",
+            platform="aliexpress",
             processing_days=3,
             shipping_days_min=7,
             shipping_days_max=21,

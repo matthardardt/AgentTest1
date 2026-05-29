@@ -13,9 +13,9 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
-      - key: CJDROPSHIPPING_API_KEY
+      - key: ALIEXPRESS_APP_KEY
         sync: false
-      - key: CJDROPSHIPPING_EMAIL
+      - key: ALIEXPRESS_APP_SECRET
         sync: false
       - key: SECRET_KEY
         generateValue: true
@@ -35,9 +35,9 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: CJDROPSHIPPING_API_KEY
+      - key: ALIEXPRESS_APP_KEY
         sync: false
-      - key: CJDROPSHIPPING_EMAIL
+      - key: ALIEXPRESS_APP_SECRET
         sync: false
       - key: SERP_API_KEY
         sync: false

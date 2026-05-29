@@ -52,7 +52,7 @@ class Supplier(Base):
 
     id = Column(String, primary_key=True, default=_gen_id)
     name = Column(String, nullable=False)
-    platform = Column(String)             # aliexpress | cjdropshipping | manual
+    platform = Column(String)             # aliexpress | manual
     api_key = Column(String)
     base_url = Column(String)
     rating = Column(Float, default=0.0)

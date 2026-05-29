@@ -7,18 +7,16 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # Store
-    store_name: str = "MyDropShop"
+    store_name: str = "Vendo's Deals"
     store_url: str = "http://localhost:8000"
     secret_key: str = "change-me-in-production"
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./dropshipping.db"
 
-    # Supplier APIs
+    # Supplier APIs (AliExpress for product sourcing)
     aliexpress_app_key: str = ""
     aliexpress_app_secret: str = ""
-    cjdropshipping_api_key: str = ""
-    cjdropshipping_email: str = ""
 
     # Payment
     stripe_api_key: str = ""
@@ -29,7 +27,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    from_email: str = "noreply@mydropshop.com"
+    from_email: str = "noreply@vendosdeals.com"
 
     # Search
     serp_api_key: str = ""

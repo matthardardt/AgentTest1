@@ -13,13 +13,25 @@ Everything you need to go from code to live store. Do the steps in order.
 | Training Agent (elite consultant) | ✅ Active, advising all agents |
 | Legal pages | ✅ Privacy, Terms, Refund, Shipping |
 | Deployment configs | ✅ Render, Fly, Docker, Railway |
-| `ANTHROPIC_API_KEY` | ❌ You must provide this |
+| `.env` scaffold | ✅ Created (with a generated `SECRET_KEY`) |
+| `SECRET_KEY` | ✅ Generated and written to `.env` |
+| `ANTHROPIC_API_KEY` | ❌ Paste yours into `.env` |
 | Stripe (payments) | ❌ Needs account + keys |
-| CJ Dropshipping (fulfilment) | ❌ Needs account + keys |
+| AliExpress (product sourcing) | ⚠️ Optional — mock data without keys |
+| Order fulfilment | ℹ️ Manual (you place AliExpress orders by hand) |
 | Email notifications | ❌ Needs SMTP credentials |
-| `SECRET_KEY` | ❌ Must be generated |
 | Deployed to internet | ❌ Not yet |
 | Custom domain | ❌ Not yet |
+
+> **About your keys:** I created a `.env` file at the project root with everything
+> non-secret pre-filled and a freshly generated `SECRET_KEY`. I could **not** fill in
+> your actual API keys (Anthropic, Stripe, AliExpress, SMTP) — they were never shared
+> with me and aren't in this environment. Open `.env` and replace each
+> `PASTE_YOUR_..._HERE` placeholder with your real value.
+>
+> Note: `.env` is gitignored (correctly — secrets must never be committed) and this is
+> an ephemeral container, so treat the `.env` here as a template. The durable copy lives
+> in your deploy platform's environment variables (Step 6).
 
 ---
 
@@ -29,17 +41,22 @@ The agents can't run without this.
 
 1. Go to **https://console.anthropic.com** → sign in or create an account.
 2. **API Keys** → **Create Key** → copy it (`sk-ant-api03-...`).
-3. Add usage limits under **Plans & Billing** to avoid surprises.
+3. Paste it into `ANTHROPIC_API_KEY` in your `.env` (replacing the placeholder).
+4. Add usage limits under **Plans & Billing** to avoid surprises.
 
 ---
 
-## Step 2 — Generate a secret key
+## Step 2 — Secret key (already done)
+
+A secure `SECRET_KEY` has already been generated and written to your `.env`. Nothing to do.
+
+If you ever want to rotate it:
 
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Save the output. It goes into `SECRET_KEY` in your environment.
+…then paste the new value into `SECRET_KEY`.
 
 ---
 
@@ -64,19 +81,32 @@ Stripe must notify your server when a payment succeeds — without this, orders 
 
 ---
 
-## Step 4 — Set up CJ Dropshipping (fulfilment)
+## Step 4 — Product sourcing & fulfilment (AliExpress)
 
-### 4a. Create account
-1. **https://app.cjdropshipping.com** → Sign Up → verify email.
-2. Complete profile (name + address required to place orders).
+You're sourcing products from **AliExpress**. Fulfilment is **manual** — AliExpress has
+no automated order API, so the system queues each paid order as a "manual ticket" for you
+to place on AliExpress by hand, then you record the tracking number back on the order.
+This means **no supplier API key is required to go live** — but adding AliExpress keys
+upgrades the product-hunting agent from mock data to live product search.
 
-### 4b. Get API key
-1. Dashboard → avatar → **API** → copy the **API Key**.
-2. Your registered email is the `CJDROPSHIPPING_EMAIL` value.
+### 4a. (Optional) Get AliExpress API keys for live product data
+1. Go to **https://portals.aliexpress.com** (AliExpress Affiliate / Open Platform) and
+   sign up for a developer/affiliate account.
+2. Create an app to obtain an **App Key** and **App Secret**.
+3. Paste them into `ALIEXPRESS_APP_KEY` and `ALIEXPRESS_APP_SECRET` in your `.env`.
 
-### 4c. Fund your wallet
-CJ requires a prepaid wallet balance before any orders can ship.
-- Dashboard → **Wallet** → **Recharge** — add $50–$100 minimum.
+> Skip this and the agents still run — product search just uses mock data until keys are added.
+
+### 4b. How manual fulfilment works day-to-day
+1. A customer pays → order becomes `PAID`.
+2. The ordering agent queues a manual-fulfilment ticket and sets status to `ordered_from_supplier`.
+3. **You** place that order on AliExpress, shipping to the customer's address.
+4. When AliExpress gives you a tracking number, record it on the order (admin) — the agent
+   then sets the order to `shipped` and emails the customer the tracking link.
+
+> Tip: when you're ready to fully automate fulfilment, you can later add a supplier with an
+> order API (e.g. CJ Dropshipping, Zendrop, Spocket). The integration point is
+> `tools/supplier_tools.py`.
 
 ---
 
@@ -127,8 +157,8 @@ Pick one platform. **Render is the easiest.**
    | Key | Both services | Web only |
    |---|---|---|
    | `ANTHROPIC_API_KEY` | ✅ | |
-   | `CJDROPSHIPPING_API_KEY` | ✅ | |
-   | `CJDROPSHIPPING_EMAIL` | ✅ | |
+   | `ALIEXPRESS_APP_KEY` *(optional)* | ✅ | |
+   | `ALIEXPRESS_APP_SECRET` *(optional)* | ✅ | |
    | `STRIPE_API_KEY` | | ✅ |
    | `STRIPE_WEBHOOK_SECRET` | | ✅ |
    | `SECRET_KEY` | | ✅ |
@@ -159,8 +189,8 @@ fly secrets set \
   STRIPE_API_KEY="sk_test_..." \
   STRIPE_WEBHOOK_SECRET="whsec_..." \
   SECRET_KEY="your-32-char-random-string" \
-  CJDROPSHIPPING_API_KEY="..." \
-  CJDROPSHIPPING_EMAIL="your@email.com" \
+  ALIEXPRESS_APP_KEY="..." \
+  ALIEXPRESS_APP_SECRET="..." \
   SMTP_HOST="smtp.resend.com" \
   SMTP_PORT="465" \
   SMTP_USER="resend" \
@@ -287,9 +317,10 @@ DATABASE_URL=sqlite+aiosqlite:///./dropshipping.db
 STRIPE_API_KEY=sk_live_...           # use sk_test_... while testing
 STRIPE_WEBHOOK_SECRET=whsec_...
 
-# ── SUPPLIER ───────────────────────────────────────────────────────
-CJDROPSHIPPING_API_KEY=...
-CJDROPSHIPPING_EMAIL=your@email.com
+# ── SUPPLIER — AliExpress (optional; product sourcing only) ────────
+# Without these, product search uses mock data. Fulfilment is manual either way.
+ALIEXPRESS_APP_KEY=...
+ALIEXPRESS_APP_SECRET=...
 
 # ── EMAIL ──────────────────────────────────────────────────────────
 SMTP_HOST=smtp.resend.com
@@ -328,7 +359,7 @@ TRAINING_AGENT_MODEL=claude-opus-4-8
 | Training / Consultant | Every 8 hrs | Opus 4.8 | Studies top e-commerce sites, generates coaching for all other agents, self-improves each cycle |
 | Product Hunting | Every 60 min | Opus 4.8 | Discovers trending products, updates catalog, discontinues underperformers |
 | Pricing | Every 30 min | Sonnet 4.6 | Monitors competitor prices, applies psychological pricing, protects margins |
-| Ordering | Every 5 min | Sonnet 4.6 | Processes paid orders, places supplier orders, sends tracking updates |
+| Ordering | Every 5 min | Sonnet 4.6 | Queues paid orders for manual AliExpress fulfilment, records tracking, sends customer updates |
 | Website Maintenance | Every 2 hrs | Sonnet 4.6 | Rewrites weak copy, fills SEO gaps, balances categories |
 | Graphic Design | Every 2 hrs | Sonnet 4.6 | Maintains brand assets, mascot variants, promotional banners |
 | Image Validation | Every 10 min | Sonnet 4.6 | Verifies product images match listings, replaces mismatches |
@@ -357,7 +388,7 @@ python launch.py                 # one-shot go-live audit, then exit
 | Render (web + worker) | 750 hrs/month | ~$14/month for two starter services |
 | Render disk | — | $0.25/month (1 GB) |
 | Stripe | Free | 2.9% + $0.30 per transaction |
-| CJ Dropshipping | Free account | Wallet balance consumed per order |
+| AliExpress | Free | Product cost + shipping, paid per order when you fulfil |
 | Resend email | 3,000/month free | $20/month for 50K |
 | Domain | — | ~$10–15/year |
 | **Total (running)** | | **~$20–45/month** |
@@ -373,7 +404,12 @@ python -m scripts.seed
 
 **Orders stuck in PENDING** — Stripe keys missing or webhook not configured. Revisit Step 3.
 
-**Supplier orders not placed** — CJ Dropshipping keys missing or wallet balance is zero. Revisit Step 4.
+**Orders stuck in ORDERED_FROM_SUPPLIER** — this is expected: fulfilment is manual. Place
+the order on AliExpress, then record the tracking number on the order. The ordering agent
+moves it to `shipped` once tracking is present. (See Step 4b.)
+
+**Product search returns generic/mock products** — add `ALIEXPRESS_APP_KEY` /
+`ALIEXPRESS_APP_SECRET` for live AliExpress data. (Optional — Step 4a.)
 
 **Emails not sending** — Test SMTP directly:
 ```bash
