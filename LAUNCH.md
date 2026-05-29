@@ -15,7 +15,7 @@ Everything you need to go from code to live store. Do the steps in order.
 | Deployment configs | ✅ Render, Fly, Docker, Railway |
 | `ANTHROPIC_API_KEY` | ✅ Set in `.env` — verified working |
 | `SECRET_KEY` | ✅ Set in `.env` (your value) |
-| Stripe (payments) | 🟡 **Test** key set — needs webhook secret, then live key |
+| Stripe (payments) | 🟡 **Test** key + webhook secret set — ready for test mode |
 | AliExpress (product sourcing) | ⚠️ Optional — mock data without keys |
 | Order fulfilment | ℹ️ Manual (you place AliExpress orders by hand) |
 | Email notifications | ❌ Needs SMTP credentials |
@@ -27,7 +27,7 @@ Everything you need to go from code to live store. Do the steps in order.
 > was verified with a live call (the model replied). The Stripe key is correctly
 > formatted and loads cleanly.
 >
-> Still blank in `.env`: `STRIPE_WEBHOOK_SECRET`, `ALIEXPRESS_*` (optional), and `SMTP_*`.
+> Set in `.env`: `ANTHROPIC_API_KEY`, `SECRET_KEY`, `STRIPE_API_KEY` (test), `STRIPE_WEBHOOK_SECRET` (test). Still blank: `ALIEXPRESS_*` (optional) and `SMTP_*`.
 >
 > **Security:** `.env` is gitignored, so none of these are committed to the repo. But
 > note you pasted them into chat, and this is an ephemeral container — the durable copy
@@ -53,22 +53,18 @@ To rotate it later: `python -c "import secrets; print(secrets.token_hex(32))"` �
 
 ---
 
-## Step 3 — Stripe (payments) 🟡 IN PROGRESS
+## Step 3 — Stripe (payments) 🟡 TEST MODE CONFIGURED
 
-✅ **Done:** Your Stripe **test** secret key (`sk_test_…`) is set in `.env`. Test checkouts
-will work once deployed; no real money is charged in test mode.
+✅ **Done:** Your Stripe **test** secret key (`sk_test_…`) and **webhook signing secret** (`whsec_…`) are both set in `.env`. Payments and webhook order-confirmation will work once deployed in test mode — no real money is charged.
 
-**Still to do:**
-
-### 3a. Add the webhook signing secret
-Stripe must notify your server when a payment succeeds — without this, paid orders won't auto-confirm.
+### When you deploy (Step 6): register the webhook endpoint
+Stripe needs to know where to send events for your live domain.
 
 1. Stripe dashboard → **Developers** → **Webhooks** → **Add endpoint**.
 2. URL: `https://yourdomain.com/api/orders/webhook/stripe`  
-   *(use your real domain — come back here after Step 6 once deployed)*
+   *(use your real domain — come back here after Step 6)*
 3. Events: check **`payment_intent.succeeded`** and **`checkout.session.completed`**.
-4. Save, then reveal and copy the **Signing secret** (`whsec_…`).
-5. Put it in `.env` as `STRIPE_WEBHOOK_SECRET=` (and in your deploy platform's env vars).
+4. Save. The signing secret (`whsec_…`) you already have is for this endpoint — copy it if Stripe shows a new one and update your deploy platform's `STRIPE_WEBHOOK_SECRET` env var.
 
 ### 3b. When ready for real money — swap to live keys
 Currently you're on a `sk_test_…` key. To charge real cards, follow **Step 10** (toggle
