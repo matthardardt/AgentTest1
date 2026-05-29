@@ -3,6 +3,7 @@ from config import get_settings
 from tools.search_tools import SearchTools
 from tools.supplier_tools import SupplierTools
 from tools.analytics_tools import AnalyticsTools
+from tools.analysis_tools import AnalysisTools
 
 settings = get_settings()
 
@@ -45,6 +46,7 @@ class ProductHuntingAgent(BaseAgent):
             SearchTools.SCHEMAS
             + SupplierTools.SCHEMAS
             + AnalyticsTools.SCHEMAS
+            + AnalysisTools.READ_SCHEMAS
         )
 
     def _build_tool_map(self) -> dict:
@@ -56,11 +58,15 @@ class ProductHuntingAgent(BaseAgent):
                 "get_supplier_tracking": SupplierTools.get_supplier_tracking,
             },
             **AnalyticsTools.MAP,
+            **AnalysisTools.READ_MAP,
         }
 
     async def run_product_hunt(self) -> str:
         return await self.run(
             "Perform a full product hunting session: "
+            "0) Call get_recommendations(target_agent='product_hunting') and act on any "
+            "open recommendations from the business analyst (e.g. favouring higher-AOV "
+            "or bundleable products to improve unit economics). "
             "1) Review the current catalog for underperformers to discontinue. "
             "2) Search for trending products in at least 3 niches. "
             "3) Evaluate top candidates and add the best 3–5 products to the store. "

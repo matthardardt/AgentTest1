@@ -27,6 +27,7 @@ from agents.ordering_agent import OrderingAgent
 from agents.website_maintenance_agent import WebsiteMaintenanceAgent
 from agents.manager_agent import ManagerAgent
 from agents.design_agent import DesignAgent
+from agents.business_analysis_agent import BusinessAnalysisAgent
 from agents.dynamic_agent import DynamicAgent
 
 settings = get_settings()
@@ -93,6 +94,7 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
     website_agent = WebsiteMaintenanceAgent()
     design_agent  = DesignAgent()
     manager_agent = ManagerAgent()
+    analysis_agent = BusinessAnalysisAgent()
 
     # Print schedule table
     table = Table(title="Agent Schedule", show_header=True)
@@ -107,6 +109,7 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
         (website_agent,  settings.website_agent_interval,  "Website Maintenance"),
         (design_agent,   settings.website_agent_interval,  "Graphic Design"),
         (manager_agent,  settings.manager_agent_interval,  "Manager"),
+        (analysis_agent, settings.analysis_agent_interval, "Business Analysis"),
     ]
     for agent, interval, label in schedules:
         table.add_row(label, f"{interval}s", agent.model)
@@ -143,6 +146,11 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
             settings.manager_agent_interval,
             "Manager",
         )),
+        asyncio.create_task(run_agent_loop(
+            analysis_agent.run_analysis_cycle,
+            settings.analysis_agent_interval,
+            "Business Analysis",
+        )),
     ]
 
     # Watcher: picks up new dynamic agent definitions created by the manager
@@ -153,6 +161,63 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
         tasks.append(asyncio.create_task(run_store()))
 
     await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def _latest_plan_verdict() -> dict | None:
+    """Read the most recent business_plan_assessment metric."""
+    from database import BusinessMetric
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(BusinessMetric)
+            .where(BusinessMetric.metric_name == "business_plan_assessment")
+            .order_by(BusinessMetric.recorded_at.desc())
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        return json.loads(row.metric_data) if row and row.metric_data else None
+
+
+async def run_consensus_loop(max_rounds: int = 4) -> None:
+    """Iterate the Business Analyst with the operational agents until the analyst
+    signs the plan off as 'sound' (or max_rounds is reached).
+
+    Each round: the analyst evaluates the economics and posts addressed
+    recommendations; the operational agents then act on the recommendations
+    aimed at them; the analyst re-evaluates next round. Requires ANTHROPIC_API_KEY.
+    """
+    await init_db()
+    analysis = BusinessAnalysisAgent()
+    pricing = PricingAgent()
+    product = ProductHuntingAgent()
+    website = WebsiteMaintenanceAgent()
+    design = DesignAgent()
+
+    for rnd in range(1, max_rounds + 1):
+        console.rule(f"[bold]Consensus round {rnd}/{max_rounds}")
+
+        console.print("[cyan]Business Analyst evaluating…[/cyan]")
+        summary = await analysis.run_analysis_cycle()
+        console.print(summary[:600])
+
+        verdict = await _latest_plan_verdict()
+        if verdict:
+            console.print(f"[bold]Verdict:[/bold] {verdict.get('verdict')} "
+                          f"(score {verdict.get('score')})")
+            if verdict.get("verdict") == "sound" and verdict.get("score", 0) >= 75:
+                console.print("[green bold]✓ Analyst signed off — plan is sound.[/green bold]")
+                return
+
+        console.print("[cyan]Operational agents acting on recommendations…[/cyan]")
+        await asyncio.gather(
+            pricing.run_pricing_update(),
+            product.run_product_hunt(),
+            website.run_maintenance(),
+            design.run_design_cycle(),
+            return_exceptions=True,
+        )
+
+    console.print("[yellow]Max rounds reached without full sign-off. "
+                  "Review the latest recommendations and verdict.[/yellow]")
 
 
 _running_dynamic: set[str] = set()
@@ -198,12 +263,20 @@ if __name__ == "__main__":
     parser.add_argument("--store", action="store_true", help="Also run the FastAPI store server")
     parser.add_argument("--golive", action="store_true",
                         help="Run the Go-Live agent once as a pre-flight before starting the loops")
+    parser.add_argument("--consensus", action="store_true",
+                        help="Run the Business Analyst + operational agents in a consensus "
+                             "loop until the plan is signed off, then exit")
+    parser.add_argument("--rounds", type=int, default=4,
+                        help="Max consensus rounds (with --consensus)")
     args = parser.parse_args()
 
     signal.signal(signal.SIGINT, _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
 
     try:
-        asyncio.run(main(with_store=args.store, run_golive=args.golive))
+        if args.consensus:
+            asyncio.run(run_consensus_loop(max_rounds=args.rounds))
+        else:
+            asyncio.run(main(with_store=args.store, run_golive=args.golive))
     except KeyboardInterrupt:
         pass

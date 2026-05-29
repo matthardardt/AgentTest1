@@ -2,6 +2,7 @@ from agents.base_agent import BaseAgent
 from config import get_settings
 from tools.analytics_tools import AnalyticsTools
 from tools.search_tools import SearchTools
+from tools.analysis_tools import AnalysisTools
 
 settings = get_settings()
 
@@ -42,14 +43,17 @@ class WebsiteMaintenanceAgent(BaseAgent):
     system_prompt = _SYSTEM_PROMPT
 
     def _define_tools(self) -> list[dict]:
-        return AnalyticsTools.SCHEMAS + SearchTools.SCHEMAS
+        return AnalyticsTools.SCHEMAS + SearchTools.SCHEMAS + AnalysisTools.READ_SCHEMAS
 
     def _build_tool_map(self) -> dict:
-        return {**AnalyticsTools.MAP, **SearchTools.MAP}
+        return {**AnalyticsTools.MAP, **SearchTools.MAP, **AnalysisTools.READ_MAP}
 
     async def run_maintenance(self) -> str:
         return await self.run(
             "Perform a full website maintenance pass: "
+            "0) Call get_recommendations(target_agent='website_maintenance') and apply any "
+            "open recommendations from the business analyst (e.g. conversion-rate "
+            "improvements: trust signals, clearer benefits, stronger calls to action). "
             "1) Get all active products. "
             "2) Audit each for content quality (description, images, tags, category, SEO). "
             "3) Update any product that needs improvement. "

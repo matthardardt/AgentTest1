@@ -52,10 +52,10 @@
 
         <div class="pt-4 border-t">
           <h2 class="text-lg font-semibold mb-3">Payment</h2>
-          {% if stripe_key %}
-          <div id="card-element" class="border rounded-lg p-3 text-sm text-gray-400">
-            (Stripe card element)
-          </div>
+          {% if payments_enabled %}
+          <p class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+            🔒 You'll be redirected to our secure Stripe checkout to complete payment.
+          </p>
           {% else %}
           <p class="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
             ⚠️ Payment processing not configured. Set STRIPE_API_KEY to enable.
@@ -67,7 +67,7 @@
         <button type="submit"
                 class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold
                        hover:bg-indigo-700 text-lg mt-2">
-          Place Order
+          {% if payments_enabled %}Continue to Payment{% else %}Place Order{% endif %}
         </button>
       </form>
     </div>
@@ -118,22 +118,28 @@ document.getElementById('checkout-form').addEventListener('submit', async (e) =>
       postal_code: document.getElementById('postal_code').value,
     },
     items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-    payment_id: 'pending',  // replace with Stripe PaymentIntent ID when live
   };
 
   const btn = e.target.querySelector('button[type=submit]');
-  btn.disabled = true; btn.textContent = 'Placing order…';
+  btn.disabled = true; btn.textContent = 'Processing…';
 
   try {
-    const res = await fetch('/api/orders/', { method: 'POST',
+    // Create the order and (when Stripe is live) a hosted Checkout Session.
+    const res = await fetch('/api/orders/create-checkout-session', { method: 'POST',
       headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
     const data = await res.json();
-    if (res.ok) {
-      localStorage.removeItem('cart');
-      window.location.href = '/order/' + data.order_id;
-    } else {
+    if (!res.ok) {
       alert('Error: ' + JSON.stringify(data));
       btn.disabled = false; btn.textContent = 'Place Order';
+      return;
+    }
+    localStorage.removeItem('cart');
+    if (data.checkout_url) {
+      // Redirect to Stripe-hosted checkout. Payment is confirmed via webhook.
+      window.location.href = data.checkout_url;
+    } else {
+      // Payments not configured — go straight to the confirmation page.
+      window.location.href = data.redirect_url || ('/order/' + data.order_id);
     }
   } catch (err) {
     alert('Network error. Please try again.');

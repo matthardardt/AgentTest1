@@ -87,7 +87,9 @@ async def product_page(product_id: str, request: Request, db: AsyncSession = Dep
 async def checkout_page(request: Request):
     return templates.TemplateResponse(request, "checkout.html", {
         "store_name": settings.store_name,
-        "stripe_key": settings.stripe_api_key or "",
+        # Never expose the secret key to the browser. The hosted Stripe Checkout
+        # flow only needs to know whether payments are enabled.
+        "payments_enabled": settings.payments_enabled,
     })
 
 

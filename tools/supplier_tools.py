@@ -101,6 +101,14 @@ async def cj_place_order(
     """Place a dropship order via CJ Dropshipping."""
     token = await cj_get_token()
     if not token:
+        if not settings.allow_mock_suppliers:
+            return {
+                "success": False,
+                "live": False,
+                "error": "Supplier credentials not configured. Refusing to place a "
+                         "mock order in production. Set CJDROPSHIPPING_API_KEY + "
+                         "CJDROPSHIPPING_EMAIL, or set ALLOW_MOCK_SUPPLIERS=true for testing.",
+            }
         return _mock_place_order(product_id, quantity, shipping_name)
 
     headers = {"CJ-Access-Token": token}
@@ -131,6 +139,12 @@ async def get_tracking_info(supplier_order_id: str) -> dict[str, Any]:
     """Get tracking information for a supplier order."""
     token = await cj_get_token()
     if not token:
+        if not settings.allow_mock_suppliers:
+            return {
+                "success": False,
+                "live": False,
+                "error": "Supplier credentials not configured; no real tracking available.",
+            }
         return _mock_tracking(supplier_order_id)
 
     headers = {"CJ-Access-Token": token}

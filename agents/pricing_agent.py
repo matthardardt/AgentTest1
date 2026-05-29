@@ -2,6 +2,7 @@ from agents.base_agent import BaseAgent
 from config import get_settings
 from tools.search_tools import SearchTools
 from tools.analytics_tools import AnalyticsTools
+from tools.analysis_tools import AnalysisTools
 
 settings = get_settings()
 
@@ -32,14 +33,17 @@ class PricingAgent(BaseAgent):
     system_prompt = _SYSTEM_PROMPT
 
     def _define_tools(self) -> list[dict]:
-        return SearchTools.SCHEMAS + AnalyticsTools.SCHEMAS
+        return SearchTools.SCHEMAS + AnalyticsTools.SCHEMAS + AnalysisTools.READ_SCHEMAS
 
     def _build_tool_map(self) -> dict:
-        return {**SearchTools.MAP, **AnalyticsTools.MAP}
+        return {**SearchTools.MAP, **AnalyticsTools.MAP, **AnalysisTools.READ_MAP}
 
     async def run_pricing_update(self) -> str:
         return await self.run(
             "Run a full competitive pricing analysis: "
+            "0) Call get_recommendations(target_agent='pricing') and fold any open "
+            "recommendations from the business analyst into this cycle (e.g. raising "
+            "AOV via free-shipping thresholds or bundle pricing). "
             "1) Get all active products. "
             "2) For each product, search competitor prices. "
             "3) Adjust our price to be competitive while maintaining healthy margins. "

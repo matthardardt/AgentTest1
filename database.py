@@ -82,7 +82,7 @@ class Product(Base):
     supplier_product_id = Column(String)
     supplier_url = Column(String)
     weight_kg = Column(Float)
-    status = Column(Enum(ProductStatus), default=ProductStatus.ACTIVE)
+    status = Column(Enum(ProductStatus), default=ProductStatus.ACTIVE, index=True)
     stock_quantity = Column(Integer, default=999)  # virtual stock for dropshipping
     tags = Column(Text)                   # JSON array
     meta_title = Column(String)
@@ -118,8 +118,8 @@ class Order(Base):
 
     id = Column(String, primary_key=True, default=_gen_id)
     order_number = Column(String, unique=True)
-    customer_id = Column(String, ForeignKey("customers.id"))
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    customer_id = Column(String, ForeignKey("customers.id"), index=True)
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING, index=True)
     subtotal = Column(Float)
     shipping_cost = Column(Float, default=0.0)
     total = Column(Float)
@@ -141,8 +141,8 @@ class OrderItem(Base):
     __tablename__ = "order_items"
 
     id = Column(String, primary_key=True, default=_gen_id)
-    order_id = Column(String, ForeignKey("orders.id"))
-    product_id = Column(String, ForeignKey("products.id"))
+    order_id = Column(String, ForeignKey("orders.id"), index=True)
+    product_id = Column(String, ForeignKey("products.id"), index=True)
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
@@ -168,13 +168,13 @@ class AgentLog(Base):
     __tablename__ = "agent_logs"
 
     id = Column(String, primary_key=True, default=_gen_id)
-    agent_name = Column(String, nullable=False)
+    agent_name = Column(String, nullable=False, index=True)
     task = Column(Text)
     result = Column(Text)
     status = Column(String)               # success | error
     tokens_used = Column(Integer)
     duration_seconds = Column(Float)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class AgentDefinition(Base):

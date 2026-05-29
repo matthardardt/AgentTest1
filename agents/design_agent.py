@@ -9,6 +9,7 @@ from agents.base_agent import BaseAgent
 from config import get_settings
 from tools.analytics_tools import AnalyticsTools
 from tools.design_tools import DesignTools
+from tools.analysis_tools import AnalysisTools
 
 settings = get_settings()
 
@@ -67,14 +68,16 @@ class DesignAgent(BaseAgent):
     max_iterations = 20
 
     def _define_tools(self) -> list[dict]:
-        return DesignTools.SCHEMAS + AnalyticsTools.SCHEMAS
+        return DesignTools.SCHEMAS + AnalyticsTools.SCHEMAS + AnalysisTools.READ_SCHEMAS
 
     def _build_tool_map(self) -> dict:
-        return {**DesignTools.MAP, **AnalyticsTools.MAP}
+        return {**DesignTools.MAP, **AnalyticsTools.MAP, **AnalysisTools.READ_MAP}
 
     async def run_design_cycle(self) -> str:
         return await self.run(
-            "Audit the current brand assets. Check what SVGs and CSS files exist. "
-            "Identify anything missing or that could be refreshed, then act on it — "
-            "create or update assets to keep Vendo's Deals looking sharp and on-brand."
+            "First call get_recommendations(target_agent='design') and act on any open "
+            "recommendations from the business analyst (e.g. higher-converting ad "
+            "creative or trust badges). Then audit the current brand assets — check what "
+            "SVGs and CSS files exist. Identify anything missing or that could be "
+            "refreshed, then act on it to keep Vendo's Deals looking sharp and on-brand."
         )

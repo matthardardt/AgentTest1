@@ -7,7 +7,7 @@ import json
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,14 @@ settings = get_settings()
 router = APIRouter()
 
 
-@router.get("/stats")
+async def require_admin_key(x_api_key: str = Header(default="")) -> None:
+    """Guard for sensitive admin endpoints. Send the key in the `X-API-Key`
+    header (defaults to SECRET_KEY when ADMIN_API_KEY is unset)."""
+    if x_api_key != settings.effective_admin_key:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
+@router.get("/stats", dependencies=[Depends(require_admin_key)])
 async def get_stats(db: AsyncSession = Depends(get_db)):
     total_products = (await db.execute(
         select(func.count(Product.id)).where(Product.status == ProductStatus.ACTIVE)
@@ -48,7 +55,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/agents")
+@router.get("/agents", dependencies=[Depends(require_admin_key)])
 async def list_agents(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(AgentDefinition))
     return {"agents": [
@@ -58,7 +65,7 @@ async def list_agents(db: AsyncSession = Depends(get_db)):
     ]}
 
 
-@router.get("/logs")
+@router.get("/logs", dependencies=[Depends(require_admin_key)])
 async def recent_logs(limit: int = 50, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(AgentLog).order_by(AgentLog.created_at.desc()).limit(limit)
@@ -164,7 +171,7 @@ async def seed_catalog(key: str = "", db: AsyncSession = Depends(get_db)):
             "message": f"Seeded {added} products. Refresh the homepage!"}
 
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[Depends(require_admin_key)])
 async def recent_metrics(limit: int = 100, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(BusinessMetric).order_by(BusinessMetric.recorded_at.desc()).limit(limit)
