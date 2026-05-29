@@ -13,71 +13,66 @@ Everything you need to go from code to live store. Do the steps in order.
 | Training Agent (elite consultant) | ✅ Active, advising all agents |
 | Legal pages | ✅ Privacy, Terms, Refund, Shipping |
 | Deployment configs | ✅ Render, Fly, Docker, Railway |
-| `.env` scaffold | ✅ Created (with a generated `SECRET_KEY`) |
-| `SECRET_KEY` | ✅ Generated and written to `.env` |
-| `ANTHROPIC_API_KEY` | ❌ Paste yours into `.env` |
-| Stripe (payments) | ❌ Needs account + keys |
+| `ANTHROPIC_API_KEY` | ✅ Set in `.env` — verified working |
+| `SECRET_KEY` | ✅ Set in `.env` (your value) |
+| Stripe (payments) | 🟡 **Test** key set — needs webhook secret, then live key |
 | AliExpress (product sourcing) | ⚠️ Optional — mock data without keys |
 | Order fulfilment | ℹ️ Manual (you place AliExpress orders by hand) |
 | Email notifications | ❌ Needs SMTP credentials |
 | Deployed to internet | ❌ Not yet |
 | Custom domain | ❌ Not yet |
 
-> **About your keys:** I created a `.env` file at the project root with everything
-> non-secret pre-filled and a freshly generated `SECRET_KEY`. I could **not** fill in
-> your actual API keys (Anthropic, Stripe, AliExpress, SMTP) — they were never shared
-> with me and aren't in this environment. Open `.env` and replace each
-> `PASTE_YOUR_..._HERE` placeholder with your real value.
+> **About your keys:** Your `ANTHROPIC_API_KEY`, `SECRET_KEY`, and a Stripe **test**
+> key (`sk_test_…`) are now in the `.env` file at the project root. The Anthropic key
+> was verified with a live call (the model replied). The Stripe key is correctly
+> formatted and loads cleanly.
 >
-> Note: `.env` is gitignored (correctly — secrets must never be committed) and this is
-> an ephemeral container, so treat the `.env` here as a template. The durable copy lives
-> in your deploy platform's environment variables (Step 6).
+> Still blank in `.env`: `STRIPE_WEBHOOK_SECRET`, `ALIEXPRESS_*` (optional), and `SMTP_*`.
+>
+> **Security:** `.env` is gitignored, so none of these are committed to the repo. But
+> note you pasted them into chat, and this is an ephemeral container — the durable copy
+> belongs in your deploy platform's environment variables (Step 6). Since the keys passed
+> through chat, consider rotating the Anthropic key once you're set up if that history
+> could ever be exposed.
 
 ---
 
-## Step 1 — Get your Anthropic API key
+## Step 1 — Anthropic API key ✅ DONE
 
-The agents can't run without this.
+Your `ANTHROPIC_API_KEY` is set in `.env` and verified working — the agents can run.
 
-1. Go to **https://console.anthropic.com** → sign in or create an account.
-2. **API Keys** → **Create Key** → copy it (`sk-ant-api03-...`).
-3. Paste it into `ANTHROPIC_API_KEY` in your `.env` (replacing the placeholder).
-4. Add usage limits under **Plans & Billing** to avoid surprises.
+Recommended: set usage limits under **Plans & Billing** at console.anthropic.com to avoid surprises.
 
 ---
 
-## Step 2 — Secret key (already done)
+## Step 2 — Secret key ✅ DONE
 
-A secure `SECRET_KEY` has already been generated and written to your `.env`. Nothing to do.
+Your `SECRET_KEY` is set in `.env`. Nothing to do.
 
-If you ever want to rotate it:
-
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-…then paste the new value into `SECRET_KEY`.
+To rotate it later: `python -c "import secrets; print(secrets.token_hex(32))"` → paste into `SECRET_KEY`.
 
 ---
 
-## Step 3 — Set up Stripe (payments)
+## Step 3 — Stripe (payments) 🟡 IN PROGRESS
 
-### 3a. Create account
-1. **https://dashboard.stripe.com/register** — sign up, verify email.
-2. Complete the business profile (country required to process payments).
+✅ **Done:** Your Stripe **test** secret key (`sk_test_…`) is set in `.env`. Test checkouts
+will work once deployed; no real money is charged in test mode.
 
-### 3b. Get API keys
-1. Dashboard → **Developers** → **API Keys**.
-2. Copy the **Secret key** (`sk_test_...` for now, `sk_live_...` when ready to go live).
+**Still to do:**
 
-### 3c. Set up webhook
-Stripe must notify your server when a payment succeeds — without this, orders won't confirm.
+### 3a. Add the webhook signing secret
+Stripe must notify your server when a payment succeeds — without this, paid orders won't auto-confirm.
 
-1. Dashboard → **Developers** → **Webhooks** → **Add endpoint**.
+1. Stripe dashboard → **Developers** → **Webhooks** → **Add endpoint**.
 2. URL: `https://yourdomain.com/api/orders/webhook/stripe`  
-   *(use your real domain — come back here after Step 6)*
+   *(use your real domain — come back here after Step 6 once deployed)*
 3. Events: check **`payment_intent.succeeded`** and **`checkout.session.completed`**.
-4. Save, then reveal and copy the **Signing secret** (`whsec_...`).
+4. Save, then reveal and copy the **Signing secret** (`whsec_…`).
+5. Put it in `.env` as `STRIPE_WEBHOOK_SECRET=` (and in your deploy platform's env vars).
+
+### 3b. When ready for real money — swap to live keys
+Currently you're on a `sk_test_…` key. To charge real cards, follow **Step 10** (toggle
+Stripe to live mode, copy the `sk_live_…` key and a live `whsec_…`, update env vars, redeploy).
 
 ---
 
