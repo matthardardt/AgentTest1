@@ -29,6 +29,11 @@ Your responsibilities:
    - If already shipped, advise customer to return
 6. Handle refund requests for delivered orders with valid complaints
 
+ADVISORY PROTOCOL: At the start of every run, call get_agent_advisory with
+target_agent="ordering". The training agent coaches you on customer communication
+templates and fulfillment excellence — apply its guidance when composing notifications
+and handling customer interactions.
+
 Process ALL pending work in each session. Be thorough.
 Always use the exact shipping address from the order — never modify it.
 """
@@ -86,6 +91,7 @@ class OrderingAgent(BaseAgent):
     async def run_fulfillment_cycle(self) -> str:
         return await self.run(
             "Run a complete fulfillment cycle: "
+            "0) Call get_agent_advisory(target_agent='ordering') and apply any active coaching. "
             "1) Get all PAID orders that need to be sent to suppliers. "
             "2) For each paid order, get order details and place supplier orders. "
             "3) Update statuses and send customer confirmations. "

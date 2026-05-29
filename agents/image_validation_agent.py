@@ -1,5 +1,6 @@
 from agents.base_agent import BaseAgent
 from config import get_settings
+from tools.analytics_tools import AnalyticsTools
 from tools.image_validation_tools import ImageValidationTools
 
 settings = get_settings()
@@ -28,6 +29,10 @@ Rules:
 - Always call mark_product_images_validated at the end of each product, regardless of outcome.
 - Be strict: if an image clearly shows a different product category (e.g., a shoe photo on an electronics listing), that is a mismatch. But stock/lifestyle photos that are plausible for the product should pass.
 - Never remove all images from a product. If all images are mismatched and no replacements exist, flag it; don't wipe the images.
+
+ADVISORY PROTOCOL: At the start of every run, call get_agent_advisory with
+target_agent="image_validation". The training agent has researched what image standards
+drive conversions on top stores — apply its quality benchmarks this session.
 """
 
 
@@ -38,14 +43,15 @@ class ImageValidationAgent(BaseAgent):
     max_iterations = 40
 
     def _define_tools(self) -> list[dict]:
-        return ImageValidationTools.SCHEMAS
+        return ImageValidationTools.SCHEMAS + AnalyticsTools.SCHEMAS
 
     def _build_tool_map(self) -> dict:
-        return ImageValidationTools.MAP
+        return {**ImageValidationTools.MAP, **AnalyticsTools.MAP}
 
     async def run_validation_cycle(self) -> str:
         return await self.run(
             "Run a full image validation cycle: "
+            "0) Call get_agent_advisory(target_agent='image_validation') and apply the coaching. "
             "check all unvalidated products, verify each image accurately shows the product, "
             "replace mismatched images where possible, flag the rest. "
             "Report the final counts."

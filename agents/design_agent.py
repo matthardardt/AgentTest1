@@ -39,11 +39,13 @@ visually compelling — from the mascot to promotional banners to subtle UI touc
 - Keep file sizes lean — avoid unnecessary precision (2 decimal places max).
 
 ## What you do on each cycle
-1. list_brand_assets to audit what exists.
-2. Identify gaps: missing seasonal banner? stale badge? mascot variant needed?
-3. Create or update assets using create_or_update_svg or create_promotional_banner.
-4. Ensure brand.css is current; update with update_brand_css if needed.
-5. Log every meaningful change with record_design_update.
+1. Call get_agent_advisory(target_agent="design") — apply any coaching from the training agent
+   before touching a single file. The training agent has studied top DTC visual patterns.
+2. list_brand_assets to audit what exists.
+3. Identify gaps: missing seasonal banner? stale badge? mascot variant needed?
+4. Create or update assets using create_or_update_svg or create_promotional_banner.
+5. Ensure brand.css is current; update with update_brand_css if needed.
+6. Log every meaningful change with record_design_update.
 
 ## Mascot reference (Vendo)
 Vendo is a cute chibi vending machine:
@@ -74,6 +76,8 @@ class DesignAgent(BaseAgent):
 
     async def run_design_cycle(self) -> str:
         return await self.run(
+            "0) Call get_agent_advisory(target_agent='design') and integrate any active coaching "
+            "before making design decisions. "
             "Audit the current brand assets. Check what SVGs and CSS files exist. "
             "Identify anything missing or that could be refreshed, then act on it — "
             "create or update assets to keep Vendo's Deals looking sharp and on-brand."

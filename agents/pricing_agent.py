@@ -21,6 +21,11 @@ Your responsibilities:
 4. Log the reason for every price change
 5. Flag products where cost_price is 0 or missing for the product hunting agent to update
 
+ADVISORY PROTOCOL: At the start of every run, call get_agent_advisory with
+target_agent="pricing". Apply any active coaching from the training agent — new
+psychological pricing tactics, competitive positioning strategies, or margin guidance
+should all be incorporated into this session's decisions.
+
 Run pricing analysis on ALL active products every session.
 Make adjustments where needed. Report total products reviewed, changed, and flagged.
 """
@@ -40,6 +45,7 @@ class PricingAgent(BaseAgent):
     async def run_pricing_update(self) -> str:
         return await self.run(
             "Run a full competitive pricing analysis: "
+            "0) Call get_agent_advisory(target_agent='pricing') and apply any active coaching. "
             "1) Get all active products. "
             "2) For each product, search competitor prices. "
             "3) Adjust our price to be competitive while maintaining healthy margins. "

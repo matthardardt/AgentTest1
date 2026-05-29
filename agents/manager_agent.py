@@ -42,6 +42,11 @@ When creating a new agent, provide:
 - The tool categories it needs (search, analytics, supplier, notification)
 
 After each session, record a business health metric summarizing the overall state.
+
+ADVISORY PROTOCOL: At the start of every run, call get_agent_advisory with
+target_agent="manager". The training agent monitors industry KPI benchmarks and growth
+patterns — its strategic advisories should inform your business health assessment and
+any new agent definitions you create.
 """
 
 
@@ -59,6 +64,8 @@ class ManagerAgent(BaseAgent):
     async def run_management_cycle(self) -> str:
         return await self.run(
             "Run a full business management cycle: "
+            "0) Call get_agent_advisory(target_agent='manager') and integrate the training agent's "
+            "strategic guidance before making any decisions. "
             "1) Get business metrics for the past 30 days. "
             "2) Review all agent logs for errors, inactivity, or underperformance. "
             "3) List all currently registered agent definitions. "

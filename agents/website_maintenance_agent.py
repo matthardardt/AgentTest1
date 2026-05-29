@@ -32,6 +32,11 @@ Content guidelines:
 - Avoid: Superlatives without evidence ("best", "world's #1") unless justified
 - Include: Key use cases, materials/quality hints, ideal customer scenario
 
+ADVISORY PROTOCOL: At the start of every run, call get_agent_advisory with
+target_agent="website_maintenance". The training agent has studied top Shopify and DTC
+brands — its copy formulas, SEO structures, and listing templates are elite-level.
+Apply them directly to your rewrites this session.
+
 Run a full audit and improve ALL listings that need work.
 """
 
@@ -50,6 +55,7 @@ class WebsiteMaintenanceAgent(BaseAgent):
     async def run_maintenance(self) -> str:
         return await self.run(
             "Perform a full website maintenance pass: "
+            "0) Call get_agent_advisory(target_agent='website_maintenance') and apply the coaching. "
             "1) Get all active products. "
             "2) Audit each for content quality (description, images, tags, category, SEO). "
             "3) Update any product that needs improvement. "

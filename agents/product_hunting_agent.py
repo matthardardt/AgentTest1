@@ -30,6 +30,11 @@ When adding a product:
 - Set selling price at 2.5× cost minimum
 - Tag with relevant category keywords
 
+ADVISORY PROTOCOL: At the start of every run, call get_agent_advisory with
+target_agent="product_hunting". Read every active advisory and let it shape your
+decisions this session — niche selection, product criteria, description quality, everything.
+The training agent is your elite coach; treat its guidance as priority intelligence.
+
 Run a full catalog review and add at least 3 new products per session.
 Report what you added, what you discontinued, and why.
 """
@@ -61,6 +66,7 @@ class ProductHuntingAgent(BaseAgent):
     async def run_product_hunt(self) -> str:
         return await self.run(
             "Perform a full product hunting session: "
+            "0) Call get_agent_advisory(target_agent='product_hunting') and integrate any active coaching. "
             "1) Review the current catalog for underperformers to discontinue. "
             "2) Search for trending products in at least 3 niches. "
             "3) Evaluate top candidates and add the best 3–5 products to the store. "

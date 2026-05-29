@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     ordering_agent_model: str = "claude-sonnet-4-6"
     website_agent_model: str = "claude-sonnet-4-6"
     manager_agent_model: str = "claude-opus-4-8"
+    training_agent_model: str = "claude-opus-4-8"  # Needs deep reasoning for elite-level synthesis
 
     # Agent schedules (seconds between runs)
     product_agent_interval: int = 3600       # 1 hour
@@ -49,6 +50,7 @@ class Settings(BaseSettings):
     website_agent_interval: int = 7200       # 2 hours
     manager_agent_interval: int = 14400      # 4 hours
     image_validation_agent_interval: int = 600  # 10 minutes
+    training_agent_interval: int = 28800     # 8 hours
 
     class Config:
         env_file = ".env"

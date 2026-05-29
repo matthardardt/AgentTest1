@@ -29,6 +29,7 @@ from agents.manager_agent import ManagerAgent
 from agents.design_agent import DesignAgent
 from agents.dynamic_agent import DynamicAgent
 from agents.image_validation_agent import ImageValidationAgent
+from agents.training_agent import TrainingAgent
 
 settings = get_settings()
 console = Console()
@@ -95,6 +96,7 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
     design_agent     = DesignAgent()
     manager_agent    = ManagerAgent()
     image_val_agent  = ImageValidationAgent()
+    training_agent   = TrainingAgent()
 
     # Print schedule table
     table = Table(title="Agent Schedule", show_header=True)
@@ -110,6 +112,7 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
         (design_agent,    settings.website_agent_interval,           "Graphic Design"),
         (manager_agent,   settings.manager_agent_interval,           "Manager"),
         (image_val_agent, settings.image_validation_agent_interval,  "Image Validation"),
+        (training_agent,  settings.training_agent_interval,          "Training / Consultant"),
     ]
     for agent, interval, label in schedules:
         table.add_row(label, f"{interval}s", agent.model)
@@ -150,6 +153,11 @@ async def main(with_store: bool = False, run_golive: bool = False) -> None:
             image_val_agent.run_validation_cycle,
             settings.image_validation_agent_interval,
             "Image Validation",
+        )),
+        asyncio.create_task(run_agent_loop(
+            training_agent.run_training_cycle,
+            settings.training_agent_interval,
+            "Training / Consultant",
         )),
     ]
 

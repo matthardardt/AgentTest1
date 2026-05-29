@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import (
-    AgentDefinition, AgentLog, BusinessMetric, Customer,
+    AgentAdvisory, AgentDefinition, AgentLog, BusinessMetric, Customer,
     Order, OrderItem, OrderStatus, Product, ProductStatus,
     PricingHistory, Supplier, AsyncSessionLocal,
 )
@@ -356,6 +356,33 @@ async def record_metric(name: str, value: float, data: dict | None = None) -> di
         return {"success": True}
 
 
+async def get_agent_advisory(target_agent: str, limit: int = 3) -> dict[str, Any]:
+    """Retrieve active coaching advisories from the Training Agent."""
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(AgentAdvisory)
+            .where(AgentAdvisory.target_agent == target_agent)
+            .where(AgentAdvisory.status == "active")
+            .order_by(AgentAdvisory.created_at.desc())
+            .limit(limit)
+        )
+        rows = result.scalars().all()
+    if not rows:
+        return {"advisories": [], "message": "No active advisories yet — proceed with defaults."}
+    return {
+        "advisories": [
+            {
+                "advisory_type": r.advisory_type,
+                "priority": r.priority,
+                "guidance": r.guidance,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ],
+        "count": len(rows),
+    }
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _product_to_dict(p: Product) -> dict:
@@ -582,6 +609,27 @@ class AnalyticsTools:
                 "required": ["name", "value"],
             },
         },
+        {
+            "name": "get_agent_advisory",
+            "description": (
+                "Retrieve active coaching advisories from the Training Agent for your agent role. "
+                "Call this at the start of your run and integrate the guidance into your decisions."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "target_agent": {
+                        "type": "string",
+                        "description": (
+                            "Your agent name: product_hunting, pricing, website_maintenance, "
+                            "design, ordering, image_validation, or manager"
+                        ),
+                    },
+                    "limit": {"type": "integer", "default": 3},
+                },
+                "required": ["target_agent"],
+            },
+        },
     ]
 
     MAP = {
@@ -600,4 +648,5 @@ class AnalyticsTools:
         "save_agent_definition": save_agent_definition,
         "get_all_agent_definitions": get_all_agent_definitions,
         "record_metric": record_metric,
+        "get_agent_advisory": get_agent_advisory,
     }
