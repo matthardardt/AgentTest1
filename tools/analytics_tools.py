@@ -7,12 +7,11 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import (
     AgentAdvisory, AgentDefinition, AgentLog, BusinessMetric, Customer,
     Order, OrderItem, OrderStatus, Product, ProductStatus,
-    PricingHistory, Supplier, AsyncSessionLocal,
+    PricingHistory, AsyncSessionLocal,
 )
 
 

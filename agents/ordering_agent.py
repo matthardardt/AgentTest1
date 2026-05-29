@@ -1,5 +1,3 @@
-import json
-
 from agents.base_agent import BaseAgent
 from config import get_settings
 from tools.analytics_tools import AnalyticsTools

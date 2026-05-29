@@ -7,6 +7,7 @@ import asyncio
 import json
 import sys
 import os
+import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -104,7 +105,6 @@ async def seed():
         await db.flush()
 
         for data in SAMPLE_PRODUCTS:
-            import uuid
             p = Product(
                 name=data["name"],
                 description=data["description"],

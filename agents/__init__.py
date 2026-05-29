@@ -6,6 +6,8 @@ from .manager_agent import ManagerAgent
 from .golive_agent import GoLiveAgent
 from .design_agent import DesignAgent
 from .image_validation_agent import ImageValidationAgent
+from .training_agent import TrainingAgent
+from .dynamic_agent import DynamicAgent
 
 __all__ = [
     "ProductHuntingAgent",
@@ -16,4 +18,6 @@ __all__ = [
     "GoLiveAgent",
     "DesignAgent",
     "ImageValidationAgent",
+    "TrainingAgent",
+    "DynamicAgent",
 ]

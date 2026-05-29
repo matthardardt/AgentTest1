@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import (
     AgentAdvisory, AgentLog, BusinessMetric, TrainingInsight,
