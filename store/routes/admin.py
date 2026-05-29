@@ -3,11 +3,12 @@ Internal admin API — consumed by agents and an optional admin dashboard.
 Not customer-facing.
 """
 
+import hmac
 import json
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +24,19 @@ settings = get_settings()
 router = APIRouter()
 
 
-@router.get("/stats")
+def _admin_secret() -> str:
+    # Falls back to SECRET_KEY when a dedicated ADMIN_API_KEY isn't configured.
+    return settings.admin_api_key or settings.secret_key
+
+
+async def require_admin(x_admin_key: str = Header(default="")) -> None:
+    """Protect the internal admin API. Pass the key via the `X-Admin-Key` header."""
+    expected = _admin_secret()
+    if not expected or not hmac.compare_digest(x_admin_key, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@router.get("/stats", dependencies=[Depends(require_admin)])
 async def get_stats(db: AsyncSession = Depends(get_db)):
     total_products = (await db.execute(
         select(func.count(Product.id)).where(Product.status == ProductStatus.ACTIVE)
@@ -48,7 +61,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/agents")
+@router.get("/agents", dependencies=[Depends(require_admin)])
 async def list_agents(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(AgentDefinition))
     return {"agents": [
@@ -58,7 +71,7 @@ async def list_agents(db: AsyncSession = Depends(get_db)):
     ]}
 
 
-@router.get("/logs")
+@router.get("/logs", dependencies=[Depends(require_admin)])
 async def recent_logs(limit: int = 50, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(AgentLog).order_by(AgentLog.created_at.desc()).limit(limit)
@@ -73,7 +86,7 @@ async def recent_logs(limit: int = 50, db: AsyncSession = Depends(get_db)):
 @router.get("/seed")
 async def seed_catalog(key: str = "", db: AsyncSession = Depends(get_db)):
     """Seed the catalog with starter products. Protected by SECRET_KEY query param."""
-    if key != settings.secret_key:
+    if not settings.secret_key or not hmac.compare_digest(key, settings.secret_key):
         raise HTTPException(status_code=403, detail="Invalid key")
 
     existing = (await db.execute(
@@ -164,7 +177,7 @@ async def seed_catalog(key: str = "", db: AsyncSession = Depends(get_db)):
             "message": f"Seeded {added} products. Refresh the homepage!"}
 
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[Depends(require_admin)])
 async def recent_metrics(limit: int = 100, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(BusinessMetric).order_by(BusinessMetric.recorded_at.desc()).limit(limit)

@@ -23,7 +23,16 @@ class Settings(BaseSettings):
 
     # Payment
     stripe_api_key: str = ""
+    stripe_publishable_key: str = ""
     stripe_webhook_secret: str = ""
+    currency: str = "usd"
+
+    # Shipping (flat-rate rules)
+    shipping_flat_rate: float = 4.99          # charged when under the free-shipping threshold
+    free_shipping_threshold: float = 50.0     # subtotal at/above which shipping is free
+
+    # Admin API protection (defaults to secret_key when left blank)
+    admin_api_key: str = ""
 
     # Email (Resend)
     resend_api_key: str = ""

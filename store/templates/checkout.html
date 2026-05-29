@@ -52,14 +52,16 @@
 
         <div class="pt-4 border-t">
           <h2 class="text-lg font-semibold mb-3">Payment</h2>
-          {% if stripe_key %}
-          <div id="card-element" class="border rounded-lg p-3 text-sm text-gray-400">
-            (Stripe card element)
-          </div>
+          {% if stripe_enabled %}
+          <p class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3 flex items-start gap-2">
+            <span>🔒</span>
+            <span>You'll be redirected to <strong>Stripe's secure checkout</strong> to enter
+            your card details. We never see or store your card information.</span>
+          </p>
           {% else %}
           <p class="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
-            ⚠️ Payment processing not configured. Set STRIPE_API_KEY to enable.
-            Orders will be saved in PENDING status.
+            ⚠️ Payment processing is not configured yet. Your order will be saved as
+            PENDING and no payment will be taken.
           </p>
           {% endif %}
         </div>
@@ -67,7 +69,7 @@
         <button type="submit"
                 class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold
                        hover:bg-indigo-700 text-lg mt-2">
-          Place Order
+          {% if stripe_enabled %}Continue to Payment{% else %}Place Order{% endif %}
         </button>
       </form>
     </div>
@@ -77,9 +79,16 @@
       <div class="bg-white rounded-2xl shadow-sm p-6 sticky top-24">
         <h2 class="text-lg font-semibold mb-4">Order Summary</h2>
         <div id="summary-items" class="space-y-3 mb-4"></div>
-        <div class="border-t pt-4 flex justify-between font-semibold">
-          <span>Total</span>
-          <span id="summary-total">$0.00</span>
+        <div class="border-t pt-4 space-y-2 text-sm">
+          <div class="flex justify-between text-gray-600">
+            <span>Subtotal</span><span id="summary-subtotal">$0.00</span>
+          </div>
+          <div class="flex justify-between text-gray-600">
+            <span>Shipping</span><span id="summary-shipping">$0.00</span>
+          </div>
+          <div class="flex justify-between font-semibold text-base pt-2 border-t">
+            <span>Total</span><span id="summary-total">$0.00</span>
+          </div>
         </div>
       </div>
     </div>
@@ -87,12 +96,24 @@
 </div>
 
 <script>
+const FREE_SHIP_THRESHOLD = {{ free_shipping_threshold }};
+const FLAT_SHIP_RATE = {{ shipping_flat_rate }};
+
+function computeShipping(subtotal) {
+  if (subtotal <= 0) return 0;
+  return subtotal >= FREE_SHIP_THRESHOLD ? 0 : FLAT_SHIP_RATE;
+}
+
 // Render order summary from cart
 function renderSummary() {
   const items = JSON.parse(localStorage.getItem('cart') || '[]');
   const container = document.getElementById('summary-items');
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  document.getElementById('summary-total').textContent = '$' + total.toFixed(2);
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const shipping = computeShipping(subtotal);
+  document.getElementById('summary-subtotal').textContent = '$' + subtotal.toFixed(2);
+  document.getElementById('summary-shipping').textContent =
+    shipping === 0 ? (subtotal > 0 ? 'FREE' : '$0.00') : '$' + shipping.toFixed(2);
+  document.getElementById('summary-total').textContent = '$' + (subtotal + shipping).toFixed(2);
   container.innerHTML = items.map(i => `
     <div class="flex justify-between text-sm">
       <span class="line-clamp-1 flex-1">${i.name} × ${i.quantity}</span>
@@ -101,6 +122,14 @@ function renderSummary() {
   `).join('') || '<p class="text-gray-400 text-sm">Cart is empty</p>';
 }
 renderSummary();
+
+// Surface a friendly note if the customer returned from a cancelled payment.
+if (new URLSearchParams(location.search).get('canceled')) {
+  const n = document.createElement('p');
+  n.className = 'text-sm text-amber-700 bg-amber-50 rounded-lg p-3 mb-4';
+  n.textContent = 'Payment was cancelled — your cart is still here. You can try again.';
+  document.querySelector('h1').after(n);
+}
 
 document.getElementById('checkout-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -118,26 +147,33 @@ document.getElementById('checkout-form').addEventListener('submit', async (e) =>
       postal_code: document.getElementById('postal_code').value,
     },
     items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-    payment_id: 'pending',  // replace with Stripe PaymentIntent ID when live
   };
 
   const btn = e.target.querySelector('button[type=submit]');
-  btn.disabled = true; btn.textContent = 'Placing order…';
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Processing…';
 
   try {
     const res = await fetch('/api/orders/', { method: 'POST',
       headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
     const data = await res.json();
     if (res.ok) {
-      localStorage.removeItem('cart');
-      window.location.href = '/order/' + data.order_id;
+      if (data.checkout_url) {
+        // Hand off to Stripe's secure hosted checkout. Cart is cleared by the
+        // confirmation page on a successful return, not before payment.
+        window.location.href = data.checkout_url;
+      } else {
+        // Payments not configured — order saved as PENDING.
+        localStorage.removeItem('cart');
+        window.location.href = '/order/' + data.order_id;
+      }
     } else {
-      alert('Error: ' + JSON.stringify(data));
-      btn.disabled = false; btn.textContent = 'Place Order';
+      alert('Error: ' + (data.detail || JSON.stringify(data)));
+      btn.disabled = false; btn.textContent = original;
     }
   } catch (err) {
     alert('Network error. Please try again.');
-    btn.disabled = false; btn.textContent = 'Place Order';
+    btn.disabled = false; btn.textContent = original;
   }
 });
 </script>

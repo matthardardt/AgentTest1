@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import Product, ProductStatus, get_db
+from store.shipping import compute_shipping
 
 router = APIRouter()
 
@@ -47,7 +48,14 @@ async def validate_cart(body: CartValidateRequest, db: AsyncSession = Depends(ge
             "image": __first_image(product.images),
         })
 
-    return {"items": validated, "total": round(total, 2)}
+    subtotal = round(total, 2)
+    shipping = compute_shipping(subtotal)
+    return {
+        "items": validated,
+        "subtotal": subtotal,
+        "shipping": shipping,
+        "total": round(subtotal + shipping, 2),
+    }
 
 
 def __first_image(images_json: str | None) -> str:

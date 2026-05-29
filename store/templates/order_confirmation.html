@@ -1,15 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Order Confirmed – {{ store_name }}{% endblock %}
+{% block title %}Order {{ order.order_number }} – {{ store_name }}{% endblock %}
 
 {% block content %}
 <div class="max-w-lg mx-auto px-4 py-16 text-center">
-  <div class="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+  {% set paid = order.status.value in ['paid','processing','ordered_from_supplier','shipped','delivered'] %}
+  <div id="status-icon"
+       class="{{ 'bg-green-100' if paid else 'bg-amber-100' }} w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+    {% if paid %}
     <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
     </svg>
+    {% else %}
+    <svg class="w-10 h-10 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    {% endif %}
   </div>
-  <h1 class="text-3xl font-bold mb-2">Order Confirmed!</h1>
-  <p class="text-gray-500 mb-6">Thank you for your purchase.</p>
+  <h1 id="status-heading" class="text-3xl font-bold mb-2">
+    {{ 'Order Confirmed!' if paid else 'Order Received' }}
+  </h1>
+  <p id="status-sub" class="text-gray-500 mb-6">
+    {{ 'Thank you for your purchase.' if paid else 'Confirming your payment…' }}
+  </p>
 
   <div class="bg-white rounded-2xl shadow-sm p-6 text-left mb-6">
     <div class="flex justify-between text-sm mb-3">
@@ -18,9 +30,21 @@
     </div>
     <div class="flex justify-between text-sm mb-3">
       <span class="text-gray-500">Status</span>
-      <span class="capitalize font-medium text-indigo-600">{{ order.status.value }}</span>
+      <span id="order-status" class="capitalize font-medium {{ 'text-green-600' if paid else 'text-amber-600' }}">
+        {{ order.status.value }}
+      </span>
     </div>
-    <div class="flex justify-between text-sm mb-3">
+    {% if order.subtotal is not none %}
+    <div class="flex justify-between text-sm mb-2">
+      <span class="text-gray-500">Subtotal</span>
+      <span>${{ "%.2f"|format(order.subtotal or 0) }}</span>
+    </div>
+    <div class="flex justify-between text-sm mb-2">
+      <span class="text-gray-500">Shipping</span>
+      <span>{{ 'FREE' if (order.shipping_cost or 0) == 0 else '$%.2f'|format(order.shipping_cost) }}</span>
+    </div>
+    {% endif %}
+    <div class="flex justify-between text-sm mb-3 pt-2 border-t">
       <span class="text-gray-500">Total</span>
       <span class="font-bold">${{ "%.2f"|format(order.total) }}</span>
     </div>
@@ -44,4 +68,44 @@
     Continue Shopping
   </a>
 </div>
+
+<script>
+const ORDER_ID = {{ order.id|tojson }};
+const params = new URLSearchParams(location.search);
+
+// Returned from a successful Stripe checkout: clear the cart.
+if (params.get('paid')) {
+  localStorage.removeItem('cart');
+  const badge = document.getElementById('cart-badge');
+  if (badge) { badge.classList.add('hidden'); badge.textContent = '0'; }
+}
+
+// If we arrived right after payment, the confirming webhook may lag by a second
+// or two. Poll briefly so the status flips from pending → paid without a manual
+// refresh.
+const PAID_STATES = ['paid','processing','ordered_from_supplier','shipped','delivered'];
+const statusEl = document.getElementById('order-status');
+function isPaid() { return PAID_STATES.includes((statusEl.textContent || '').trim().toLowerCase()); }
+
+if (params.get('paid') && !isPaid()) {
+  let tries = 0;
+  const timer = setInterval(async () => {
+    tries++;
+    try {
+      const r = await fetch('/api/orders/' + ORDER_ID);
+      if (r.ok) {
+        const d = await r.json();
+        if (PAID_STATES.includes(d.status)) {
+          statusEl.textContent = d.status;
+          statusEl.classList.remove('text-amber-600'); statusEl.classList.add('text-green-600');
+          document.getElementById('status-heading').textContent = 'Order Confirmed!';
+          document.getElementById('status-sub').textContent = 'Thank you for your purchase.';
+          clearInterval(timer);
+        }
+      }
+    } catch (e) { /* keep trying */ }
+    if (tries >= 8) clearInterval(timer);
+  }, 1500);
+}
+</script>
 {% endblock %}
