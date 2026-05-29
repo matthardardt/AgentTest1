@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from functools import lru_cache
 from typing import Optional
 
@@ -15,6 +16,16 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./dropshipping.db"
 
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _normalise_postgres_driver(cls, v: str) -> str:
+        """Render (and most PaaS) emit postgres:// or postgresql:// without the asyncpg driver."""
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
     # Supplier APIs
     aliexpress_app_key: str = ""
     aliexpress_app_secret: str = ""
@@ -22,7 +33,8 @@ class Settings(BaseSettings):
     cjdropshipping_email: str = ""
 
     # Payment
-    stripe_api_key: str = ""
+    stripe_api_key: str = ""          # sk_test_... or sk_live_... (server only)
+    stripe_publishable_key: str = ""  # pk_test_... or pk_live_... (sent to browser)
     stripe_webhook_secret: str = ""
 
     # Email

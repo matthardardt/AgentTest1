@@ -87,7 +87,7 @@ async def product_page(product_id: str, request: Request, db: AsyncSession = Dep
 async def checkout_page(request: Request):
     return templates.TemplateResponse(request, "checkout.html", {
         "store_name": settings.store_name,
-        "stripe_key": settings.stripe_api_key or "",
+        "stripe_publishable_key": settings.stripe_publishable_key or "",
     })
 
 

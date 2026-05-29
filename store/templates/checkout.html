@@ -52,22 +52,24 @@
 
         <div class="pt-4 border-t">
           <h2 class="text-lg font-semibold mb-3">Payment</h2>
-          {% if stripe_key %}
-          <div id="card-element" class="border rounded-lg p-3 text-sm text-gray-400">
-            (Stripe card element)
-          </div>
+          {% if stripe_publishable_key %}
+          <div id="card-element"
+               class="border rounded-lg px-3 py-3 bg-white focus-within:ring-2 focus-within:ring-indigo-500"></div>
+          <p id="card-errors" class="text-red-600 text-sm mt-2 hidden"></p>
           {% else %}
           <p class="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
-            ⚠️ Payment processing not configured. Set STRIPE_API_KEY to enable.
-            Orders will be saved in PENDING status.
+            ⚠️ Payment processing not configured. Set STRIPE_PUBLISHABLE_KEY and STRIPE_API_KEY to enable live payments.
+            Orders placed now will be saved as PENDING.
           </p>
           {% endif %}
         </div>
 
-        <button type="submit"
+        <p id="submit-error" class="text-red-600 text-sm hidden"></p>
+
+        <button type="submit" id="submit-btn"
                 class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold
-                       hover:bg-indigo-700 text-lg mt-2">
-          Place Order
+                       hover:bg-indigo-700 text-lg mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          {% if stripe_publishable_key %}Pay & Place Order{% else %}Place Order{% endif %}
         </button>
       </form>
     </div>
@@ -77,29 +79,41 @@
       <div class="bg-white rounded-2xl shadow-sm p-6 sticky top-24">
         <h2 class="text-lg font-semibold mb-4">Order Summary</h2>
         <div id="summary-items" class="space-y-3 mb-4"></div>
-        <div class="border-t pt-4 flex justify-between font-semibold">
-          <span>Total</span>
-          <span id="summary-total">$0.00</span>
+        <div class="border-t pt-4">
+          <div class="flex justify-between text-sm text-gray-500 mb-1">
+            <span>Shipping</span><span>Free</span>
+          </div>
+          <div class="flex justify-between font-semibold text-lg">
+            <span>Total</span>
+            <span id="summary-total">$0.00</span>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+{% if stripe_publishable_key %}
+<script src="https://js.stripe.com/v3/"></script>
 <script>
-// Render order summary from cart
-function renderSummary() {
-  const items = JSON.parse(localStorage.getItem('cart') || '[]');
-  const container = document.getElementById('summary-items');
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  document.getElementById('summary-total').textContent = '$' + total.toFixed(2);
-  container.innerHTML = items.map(i => `
-    <div class="flex justify-between text-sm">
-      <span class="line-clamp-1 flex-1">${i.name} × ${i.quantity}</span>
-      <span class="font-medium ml-2">$${(i.price * i.quantity).toFixed(2)}</span>
-    </div>
-  `).join('') || '<p class="text-gray-400 text-sm">Cart is empty</p>';
-}
+const STRIPE_KEY = '{{ stripe_publishable_key }}';
+const stripe = Stripe(STRIPE_KEY);
+const elements = stripe.elements();
+const cardElement = elements.create('card', {
+  style: {
+    base: { fontSize: '15px', color: '#1f2937', fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+            '::placeholder': { color: '#9ca3af' } },
+    invalid: { color: '#dc2626' },
+  }
+});
+cardElement.mount('#card-element');
+
+cardElement.on('change', (e) => {
+  const el = document.getElementById('card-errors');
+  if (e.error) { el.textContent = e.error.message; el.classList.remove('hidden'); }
+  else { el.classList.add('hidden'); }
+});
+
 renderSummary();
 
 document.getElementById('checkout-form').addEventListener('submit', async (e) => {
@@ -107,32 +121,99 @@ document.getElementById('checkout-form').addEventListener('submit', async (e) =>
   const items = JSON.parse(localStorage.getItem('cart') || '[]');
   if (!items.length) { alert('Your cart is empty.'); return; }
 
-  const body = {
+  const btn = document.getElementById('submit-btn');
+  const errEl = document.getElementById('submit-error');
+  btn.disabled = true; btn.textContent = 'Processing…';
+  errEl.classList.add('hidden');
+
+  const orderBody = {
     email: document.getElementById('email').value,
     shipping_address: {
       name: document.getElementById('name').value,
       address_line1: document.getElementById('address1').value,
+      address_line2: '',
       city: document.getElementById('city').value,
       state: document.getElementById('state').value,
       country: document.getElementById('country').value,
       postal_code: document.getElementById('postal_code').value,
     },
     items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-    payment_id: 'pending',  // replace with Stripe PaymentIntent ID when live
   };
 
-  const btn = e.target.querySelector('button[type=submit]');
+  try {
+    // Step 1: create PaymentIntent + order on server
+    const piRes = await fetch('/api/orders/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderBody),
+    });
+    const piData = await piRes.json();
+    if (!piRes.ok) throw new Error(piData.detail || 'Failed to create order');
+
+    // Step 2: confirm card payment with Stripe
+    const { error, paymentIntent } = await stripe.confirmCardPayment(piData.client_secret, {
+      payment_method: {
+        card: cardElement,
+        billing_details: { name: orderBody.shipping_address.name, email: orderBody.email },
+      },
+    });
+
+    if (error) {
+      errEl.textContent = error.message;
+      errEl.classList.remove('hidden');
+      btn.disabled = false; btn.textContent = 'Pay & Place Order';
+      return;
+    }
+
+    // Step 3: payment confirmed — clear cart and go to order page
+    localStorage.removeItem('cart');
+    window.location.href = '/order/' + piData.order_id;
+
+  } catch (err) {
+    errEl.textContent = err.message || 'An unexpected error occurred. Please try again.';
+    errEl.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = 'Pay & Place Order';
+  }
+});
+</script>
+{% else %}
+<script>
+renderSummary();
+
+document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const items = JSON.parse(localStorage.getItem('cart') || '[]');
+  if (!items.length) { alert('Your cart is empty.'); return; }
+
+  const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = 'Placing order…';
 
+  const body = {
+    email: document.getElementById('email').value,
+    shipping_address: {
+      name: document.getElementById('name').value,
+      address_line1: document.getElementById('address1').value,
+      address_line2: '',
+      city: document.getElementById('city').value,
+      state: document.getElementById('state').value,
+      country: document.getElementById('country').value,
+      postal_code: document.getElementById('postal_code').value,
+    },
+    items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
+  };
+
   try {
-    const res = await fetch('/api/orders/', { method: 'POST',
-      headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+    const res = await fetch('/api/orders/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
     const data = await res.json();
     if (res.ok) {
       localStorage.removeItem('cart');
       window.location.href = '/order/' + data.order_id;
     } else {
-      alert('Error: ' + JSON.stringify(data));
+      alert('Error: ' + JSON.stringify(data.detail || data));
       btn.disabled = false; btn.textContent = 'Place Order';
     }
   } catch (err) {
@@ -140,5 +221,21 @@ document.getElementById('checkout-form').addEventListener('submit', async (e) =>
     btn.disabled = false; btn.textContent = 'Place Order';
   }
 });
+</script>
+{% endif %}
+
+<script>
+function renderSummary() {
+  const items = JSON.parse(localStorage.getItem('cart') || '[]');
+  const container = document.getElementById('summary-items');
+  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  document.getElementById('summary-total').textContent = '$' + total.toFixed(2);
+  container.innerHTML = items.map(i => `
+    <div class="flex justify-between text-sm">
+      <span class="line-clamp-1 flex-1 text-gray-700">${i.name} × ${i.quantity}</span>
+      <span class="font-medium ml-2">$${(i.price * i.quantity).toFixed(2)}</span>
+    </div>
+  `).join('') || '<p class="text-gray-400 text-sm">Cart is empty</p>';
+}
 </script>
 {% endblock %}
