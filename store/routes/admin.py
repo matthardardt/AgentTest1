@@ -147,7 +147,7 @@ async def seed_catalog(key: str = "", db: AsyncSession = Depends(get_db)):
             id=str(uuid.uuid4()),
             name=p["name"],
             description=p["description"],
-            supplier_price=p["supplier_price"],
+            cost_price=p["supplier_price"],
             selling_price=p["selling_price"],
             stock_quantity=p["stock_quantity"],
             category=p["category"],
