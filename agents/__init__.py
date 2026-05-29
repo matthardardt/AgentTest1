@@ -5,6 +5,7 @@ from .website_maintenance_agent import WebsiteMaintenanceAgent
 from .manager_agent import ManagerAgent
 from .golive_agent import GoLiveAgent
 from .design_agent import DesignAgent
+from .image_validation_agent import ImageValidationAgent
 
 __all__ = [
     "ProductHuntingAgent",
@@ -14,4 +15,5 @@ __all__ = [
     "ManagerAgent",
     "GoLiveAgent",
     "DesignAgent",
+    "ImageValidationAgent",
 ]

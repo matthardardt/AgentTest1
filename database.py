@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Enum, Float, ForeignKey,
-    Integer, String, Text,
+    Integer, String, Text, text,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -87,6 +87,8 @@ class Product(Base):
     tags = Column(Text)                   # JSON array
     meta_title = Column(String)
     meta_description = Column(Text)
+    images_validated_at = Column(DateTime, nullable=True)
+    images_validation_status = Column(String, nullable=True)  # valid | replaced | flagged
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -210,6 +212,15 @@ class BusinessMetric(Base):
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Additive column migrations for existing deployments
+        for stmt in [
+            "ALTER TABLE products ADD COLUMN images_validated_at DATETIME",
+            "ALTER TABLE products ADD COLUMN images_validation_status VARCHAR",
+        ]:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                pass  # Column already exists
 
 
 async def get_db():

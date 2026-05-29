@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     ordering_agent_interval: int = 300       # 5 minutes
     website_agent_interval: int = 7200       # 2 hours
     manager_agent_interval: int = 14400      # 4 hours
+    image_validation_agent_interval: int = 600  # 10 minutes
 
     class Config:
         env_file = ".env"
