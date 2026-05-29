@@ -86,10 +86,22 @@ class TrainingAgent(BaseAgent):
     system_prompt = _SYSTEM_PROMPT
 
     def _define_tools(self) -> list[dict]:
-        return TrainingTools.SCHEMAS + SearchTools.SCHEMAS + AnalyticsTools.SCHEMAS
+        # TrainingTools and AnalyticsTools both expose get_agent_advisory; dedupe
+        # by name, keeping the first occurrence (TrainingTools' canonical version).
+        merged = TrainingTools.SCHEMAS + SearchTools.SCHEMAS + AnalyticsTools.SCHEMAS
+        seen: set[str] = set()
+        unique: list[dict] = []
+        for schema in merged:
+            if schema["name"] in seen:
+                continue
+            seen.add(schema["name"])
+            unique.append(schema)
+        return unique
 
     def _build_tool_map(self) -> dict:
-        return {**TrainingTools.MAP, **SearchTools.MAP, **AnalyticsTools.MAP}
+        # Later dicts win on key collision; list TrainingTools last so its
+        # get_agent_advisory implementation matches the schema kept above.
+        return {**AnalyticsTools.MAP, **SearchTools.MAP, **TrainingTools.MAP}
 
     async def run_training_cycle(self) -> str:
         return await self.run(

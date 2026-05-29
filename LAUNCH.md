@@ -96,7 +96,7 @@ upgrades the product-hunting agent from mock data to live product search.
    then sets the order to `shipped` and emails the customer the tracking link.
 
 > Tip: when you're ready to fully automate fulfilment, you can later add a supplier with an
-> order API (e.g. CJ Dropshipping, Zendrop, Spocket). The integration point is
+> order API (e.g. Zendrop, Spocket, or Dropified). The integration point is
 > `tools/supplier_tools.py`.
 
 ---
