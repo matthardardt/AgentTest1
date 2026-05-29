@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # Store
-    store_name: str = "MyDropShop"
+    store_name: str = "VendosDeals"
     store_url: str = "http://localhost:8000"
     secret_key: str = "change-me-in-production"
 
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Email (Resend)
     resend_api_key: str = ""
-    from_email: str = "noreply@vendosdeals.com"
+    from_email: str = "vendo@vendosdeals.com"
 
     # Search
     serp_api_key: str = ""
