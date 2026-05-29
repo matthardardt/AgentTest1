@@ -1,38 +1,35 @@
 """
-Customer notification tools (email + simple in-db log).
+Customer notification tools (email via Resend).
 """
 
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Any
 
-from database import AsyncSessionLocal, BusinessMetric
+import resend
+
 from config import get_settings
 
 settings = get_settings()
 
 
+def _resend_client() -> None:
+    resend.api_key = settings.resend_api_key
+
+
 async def send_email(to_email: str, subject: str, body_html: str) -> dict[str, Any]:
-    """Send an email via SMTP. Falls back to logging when SMTP is unconfigured."""
-    if not settings.smtp_host:
-        # Log the email instead of sending
+    """Send an email via Resend. Falls back to logging when API key is unconfigured."""
+    if not settings.resend_api_key:
         print(f"[EMAIL] To: {to_email} | Subject: {subject}")
         return {"success": True, "method": "logged", "to": to_email}
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = settings.from_email
-        msg["To"] = to_email
-        msg.attach(MIMEText(body_html, "html"))
-
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
-            server.starttls()
-            server.login(settings.smtp_user, settings.smtp_password)
-            server.sendmail(settings.from_email, [to_email], msg.as_string())
-
-        return {"success": True, "method": "smtp", "to": to_email}
+        _resend_client()
+        result = resend.Emails.send({
+            "from": f"{settings.store_name} <{settings.from_email}>",
+            "to": [to_email],
+            "subject": subject,
+            "html": body_html,
+        })
+        return {"success": True, "method": "resend", "to": to_email, "id": result.get("id")}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 

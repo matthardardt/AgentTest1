@@ -25,12 +25,9 @@ class Settings(BaseSettings):
     stripe_api_key: str = ""
     stripe_webhook_secret: str = ""
 
-    # Email
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    from_email: str = "noreply@mydropshop.com"
+    # Email (Resend)
+    resend_api_key: str = ""
+    from_email: str = "noreply@vendosdeals.com"
 
     # Search
     serp_api_key: str = ""
