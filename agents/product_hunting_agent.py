@@ -52,6 +52,7 @@ class ProductHuntingAgent(BaseAgent):
             **SearchTools.MAP,
             **{
                 "search_supplier_products": SupplierTools.search_supplier_products,
+                "get_aliexpress_product_detail": SupplierTools.get_aliexpress_product_detail,
                 "place_supplier_order": SupplierTools.place_supplier_order,
                 "get_supplier_tracking": SupplierTools.get_supplier_tracking,
             },

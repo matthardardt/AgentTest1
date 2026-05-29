@@ -334,6 +334,20 @@ class SupplierTools:
             },
         },
         {
+            "name": "get_aliexpress_product_detail",
+            "description": (
+                "Fetch full product details from AliExpress by product ID — description, images, "
+                "variants, pricing, and shipping info. Use after search to evaluate a specific product."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "product_id": {"type": "string", "description": "AliExpress product ID"},
+                },
+                "required": ["product_id"],
+            },
+        },
+        {
             "name": "place_supplier_order",
             "description": "Place a dropship order with a supplier to ship directly to a customer.",
             "input_schema": {
@@ -365,6 +379,10 @@ class SupplierTools:
             },
         },
     ]
+
+    @staticmethod
+    async def get_aliexpress_product_detail(product_id: str) -> dict[str, Any]:
+        return await aliexpress_get_product(product_id)
 
     @staticmethod
     async def search_supplier_products(
@@ -404,6 +422,7 @@ class SupplierTools:
 
 SupplierTools.MAP = {
     "search_supplier_products": SupplierTools.search_supplier_products,
+    "get_aliexpress_product_detail": SupplierTools.get_aliexpress_product_detail,
     "place_supplier_order": SupplierTools.place_supplier_order,
     "get_supplier_tracking": SupplierTools.get_supplier_tracking,
 }
